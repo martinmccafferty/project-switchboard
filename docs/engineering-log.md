@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.3)
+**Last updated:** 2026-10-30 (Log v1.4)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -114,6 +114,9 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-09 | Main PCB top side shows only through-hole parts (capacitors, crystal, transistor); integrated circuits not yet seen | PCB photos | 2026-10-30 |
 | C-10 | ESP32-S3 board has two USB-C ports | Martin | 2026-10-30 |
 | C-11 | Main PCB underside is surface-mount. Three ICs: U2 (~18–20-pin SOP; partial marking appears to read "UTC…" / "M5F2…", unconfirmed), U3 (~14–16-pin SOP, marking hidden by wires), U4 (small 6–8-pin, marking unreadable). Also U6, a 4-pin package next to the green/red wire pair at top-left. Many zener diodes (ZD1–ZD7) and transistors (Q1, Q2, Q5, Q9, Q10) | P-07 | 2026-10-30 |
+| C-13 | U4 (8-pin SOP) is marked **HT9200A** (text reads upside down in the photo): a Holtek DTMF touch-tone generator that takes digits over a serial link and runs from a 3.58 MHz crystal | P-08a | 2026-10-30 |
+| C-14 | U2 (16-pin SOP) is marked "UTC106? / M5F2LD" (third digit partly unclear) — Unisonic (UTC) part, consistent with UTC's TEA1062 telephone speech-transmission IC sold as "1062" in SOP-16 | P-08c | 2026-10-30 |
+| C-15 | U3 (14-pin SOP) has no legible marking | P-08b | 2026-10-30 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
 
 ---
@@ -122,15 +125,16 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | ID | Hypothesis | Basis | How we will test | Status |
 |---|---|---|---|---|
-| H-01 | The "rotary" dial is an electronic keypad emulation; the phone dials with DTMF touch tones, not pulses | * and # positions (C-02) are impossible on a pulse dial; crystal (C-05) typical of DTMF generators | IC part numbers (Phase 0); later, decode tones (Phase 4) | Open |
-| H-02 | The crystal is a ~3.58 MHz DTMF-type crystal | Typical for tone-dialer chips | Close-up photo of its marking | Open |
+| H-01 | The "rotary" dial is an electronic keypad emulation; the phone dials with DTMF touch tones, not pulses | * and # positions (C-02) are impossible on a pulse dial; crystal (C-05) typical of DTMF generators | IC part numbers (Phase 0); later, decode tones (Phase 4) | **Strongly supported** by C-13 (HT9200A DTMF generator on board); final confirmation by decoding tones in Phase 4 |
+| H-02 | The crystal is a ~3.58 MHz DTMF-type crystal | Typical for tone-dialer chips | Close-up photo of its marking | Strongly supported (HT9200A requires 3.58 MHz); P-09 still wanted |
 | H-03 | Ribbon functions: HF = hands-free button, L1–L4 + KG = dial encoding, LED± = indicator light | Labels only | Only needed if architecture changes (D-04) | Parked |
 | H-04 | The bell is driven by a standard ringing signal and will ring from a 1-REN SLIC | Normal analog phone design | Phase 4 ring test | Open |
 | H-05 | Handset, speaker, and bell wires are soldered directly to the main PCB (only the 9-pin and 4-pin harnesses are plug-in) | Top-side photos show wires entering board | Underside photo | **Confirmed by C-12** — reinforces D-01 |
 | H-06 | The phone behaves as a standard US loop-powered analog telephone | Designed for analog lines | Chip IDs; Phase 4 | Open |
 | H-07 | Hook switch and hands-free button both simply take the phone "off-hook" from the line's point of view | Normal phone design | Phase 4 | Open |
 | H-08 | U6 is a bridge rectifier at the line input, making the phone insensitive to line polarity | 4-pin package beside the green/red pair, typical of phone line input; supports H-06 | Chip close-up (P-08) | Open |
-| H-09 | U3 is the tone (DTMF) dialer chip, fed by the dial via the 9-pin connector; U2 is the speech/speakerphone chip | Traces from the 9-pin connector pads run toward U3; U2 is the largest IC | Chip close-ups (P-08) | Open |
+| H-09 | U3 is an unmarked microcontroller that scans the dial (L1–L4/KG) and hands-free button, and sends digits serially to the HT9200A (U4) | Traces from the 9-pin connector run toward U3; HT9200A needs a controller to feed it; unmarked MCUs are common in budget phones | Phase 4 (indirect); not needed under D-01 | Revised (was: U3 = dialer) |
+| H-10 | U2 is a UTC1062 (TEA1062-type) speech network: handset mic/earpiece interface and line-powered audio | C-14 marking; 16-pin SOP matches | Datasheet comparison of pin connections if ever needed | Open |
 
 ---
 
@@ -153,7 +157,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ID | Question | Needed by |
 |---|---|---|
 | Q-01 | What is behind the rectangular covered panel on the base (battery compartment)? | Phase 0 |
-| Q-02 | Part numbers of the ICs on the main PCB underside (U2, U3, U4, U6 located in P-07; markings obscured by wires) | Phase 0 |
+| Q-02 | IC part numbers: U4 = HT9200A (C-13), U2 ≈ UTC1062 (C-14), U3 unmarked (C-15); U6 still to photograph | Phase 0 (mostly answered) |
 | Q-03 | Does the phone have a tone/pulse setting anywhere? (Only VOLUME switch seen so far) | Phase 0–1 |
 | Q-04 | Where will the AI relay run (home computer, Raspberry Pi, cloud service)? | Phase 2 |
 | Q-05 | Which AI voice stack: realtime speech-to-speech API vs. speech-to-text → LLM (e.g. Claude) → text-to-speech? | Phase 2–5 |
@@ -184,7 +188,8 @@ Purchase decision happens at the Phase 3 gate (D-03).
 - [x] GitHub repo created and seeded
 - [x] Hook switch identified (C-04)
 - [x] Photo: underside of main PCB (P-07)
-- [ ] Close-ups of U2, U3, U4, U6 markings with wires moved aside (P-08)
+- [x] Close-ups of U2, U3, U4 (P-08a–c)
+- [ ] Close-up of U6 (top-left 4-pin part)
 - [ ] Close-up: crystal marking
 - [ ] Photos: both sides of the green dial board
 - [ ] Photo: hook-switch board and 4-pin cable route
@@ -238,9 +243,11 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 ## 13. Reference projects and documents
 - **weeBell** (Dan Julio) — ESP32 + Silvertel AG1171 SLIC + ES8388 codec providing a single 600-ohm phone line: ringing, audio, hook and rotary/DTMF decoding, line echo cancellation. https://hackaday.io/project/191002 · https://github.com/danjulio/weeBell_hardware
 - **RotaryCell** — ESP32-S3 + AG1171 + cellular modem driving an unmodified rotary phone (dial, hook switch, mechanical bell). https://www.electronicsforu.com/news/esp32-s3-and-a7670-modem-bring-rotary-phones-to-lte
+- **Holtek HT9200A datasheet** (U4) — https://html.alldatasheet.com/html-pdf/206143/HOLTEK/HT9200A/216/1/HT9200A.html
+- **UTC TEA1062 datasheet** (likely U2) — https://html.alldatasheet.jp/html-pdf/424974/UTC/TEA1062N-D16-T/597/9/TEA1062N-D16-T.html
 - **Silvertel AG1171 datasheet** — https://static.chipdip.ru/lib/300/DOC029300244.pdf
 - Original ChatGPT handover: "Project Switchboard v1-0.docx" (superseded where this log differs).
-- **Photos:** `docs/photos/` — P-01 to P-07 committed; P-08 to P-14 wanted. Index and shot list in `docs/photos/README.md`.
+- **Photos:** `docs/photos/` — P-01 to P-08c committed; P-09 to P-14 wanted (plus U6 close-up). Index and shot list in `docs/photos/README.md`.
 
 ---
 
@@ -251,3 +258,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.1 | GitHub repo created and seeded (D-07); Q-10 answered; log now mirrored in repo |
 | 2026-10-30 | v1.2 | Original six photos committed as P-01–P-06; Phase 0 shot list defined as P-07–P-14 |
 | 2026-10-30 | v1.3 | P-07 (PCB underside) added: C-11, C-12; H-05 confirmed; H-08, H-09 added |
+| 2026-10-30 | v1.4 | Chip close-ups P-08a–c: U4 = HT9200A DTMF generator (C-13), U2 ≈ UTC1062 speech network (C-14), U3 unmarked (C-15); H-01 strongly supported; H-09 revised; H-10 added |
