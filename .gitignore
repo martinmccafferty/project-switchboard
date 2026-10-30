@@ -1,0 +1,16 @@
+# Secrets and local config
+*.env
+.env*
+secrets.*
+**/secrets.h
+
+# Build output
+build/
+.pio/
+sdkconfig.old
+__pycache__/
+.venv/
+
+# OS / editor
+.DS_Store
+.vscode/
