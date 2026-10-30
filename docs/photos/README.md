@@ -10,13 +10,13 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-04 | `p04-base-interior-overview.jpeg` | Base interior: main PCB in place, line and handset jacks, speaker, bell | Before 2026-10-30 |
 | P-05 | `p05-front-exterior-dial.jpeg` | Front: 12-position dial with * and #, HANDS FREE button | Before 2026-10-30 |
 | P-06 | `p06-top-shell-interior-dial-hookswitch.jpeg` | Top shell interior: green dial board, ribbon cable, hook-switch board (blue switch) | Before 2026-10-30 |
+| P-07 | `p07-main-pcb-underside.jpeg` | Main PCB underside: U2, U3, U4, U6, soldered harness wires | 2026-10-30 |
 
 ## Wanted (Phase 0 photo survey)
 
 | ID | Shot | Answers |
 |---|---|---|
-| P-07 | Main PCB underside, whole board, flat and in focus | Q-02, H-05 |
-| P-08 | Close-ups of each chip on the underside (markings legible) | Q-02, H-01, H-06 |
+| P-08 | Close-ups of U2, U3, U4, U6 with wires moved aside (markings legible) | Q-02, H-01, H-08, H-09 |
 | P-09 | Crystal marking close-up | H-02 |
 | P-10 | Dial board, both sides | H-01 |
 | P-11 | Hook-switch board, both sides, plus 4-pin cable route | C-04 detail |
