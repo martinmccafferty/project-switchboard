@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.1)
+**Last updated:** 2026-10-30 (Log v1.2)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -235,6 +235,7 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - **RotaryCell** — ESP32-S3 + AG1171 + cellular modem driving an unmodified rotary phone (dial, hook switch, mechanical bell). https://www.electronicsforu.com/news/esp32-s3-and-a7670-modem-bring-rotary-phones-to-lte
 - **Silvertel AG1171 datasheet** — https://static.chipdip.ru/lib/300/DOC029300244.pdf
 - Original ChatGPT handover: "Project Switchboard v1-0.docx" (superseded where this log differs).
+- **Photos:** `docs/photos/` — P-01 to P-06 committed; P-07 to P-14 wanted. Index and shot list in `docs/photos/README.md`.
 
 ---
 
@@ -243,3 +244,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 |---|---|---|
 | 2026-10-30 | v1 | Log created from handover review, photo analysis, architecture proposal; added C-04 (hook switch) and ESP32 board details from Martin |
 | 2026-10-30 | v1.1 | GitHub repo created and seeded (D-07); Q-10 answered; log now mirrored in repo |
+| 2026-10-30 | v1.2 | Original six photos committed as P-01–P-06; Phase 0 shot list defined as P-07–P-14 |
