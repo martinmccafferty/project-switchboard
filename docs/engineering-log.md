@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.7)
+**Last updated:** 2026-10-30 (Log v1.8)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -158,7 +158,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-05 | This log is the living record, kept both as a claude.ai Project doc and in the git repo | Continuity across conversations plus version history | 2026-10-30 | Active |
 | D-06 | Use the module's built-in PCB antenna; do not fit the external antenna | C-23: module has PCB antenna (external connector is optional); revisit only if Wi-Fi is weak inside the phone | 2026-10-30 | Active (updated) |
 | D-07 | Code and docs live in private GitHub repo `martinmccafferty/project-switchboard`; secrets (Wi-Fi passwords, API keys) are never committed | Created early so history starts at Phase 0 | 2026-10-30 | Active |
-| D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing is unreliable on an electronic phone (T-001) | 2026-10-30 | Proposed — awaiting Martin |
+| D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing cannot show off-hook on this electronic phone (T-001) | 2026-10-30 | Active |
 
 ---
 
@@ -184,7 +184,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | Phase | Scope | Purchases | Status |
 |---|---|---|---|
 | 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
-| 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 inconclusive |
+| 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 showed open circuit at meter voltage |
 | 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | Not started |
 | 3 | **Decision gate**: commit architecture; order line module + codec (+ PSU if needed) | Yes | Not started |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
@@ -212,7 +212,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | ID | Date | Test | Setup | Expected | Observed | Conclusion |
 |---|---|---|---|---|---|---|
-| T-001 | 2026-10-30 | Line-jack hook test (unpowered): AstroAI AM33D on diode-test setting, probes via male-male Dupont pins pushed into the phone line cord's plug | Phone unplugged from wall | On-hook "1"; handset lifted: a number | Meter and Dupont wires verified good (beep when chained probe-to-probe). Could not get reliable contact with the RJ11 plug contacts; readings A and B both "1", with contact unconfirmed | **Inconclusive.** Plug contacts too recessed for probes or Dupont pins. Also likely that an electronic phone won't conduct at diode-test voltage even when off-hook. Off-hook detection deferred to Phase 4 under real line voltage |
+| T-001 | 2026-10-30 | Line-jack hook test (unpowered): AstroAI AM33D on diode-test setting, probes via male-male Dupont pins pushed into the phone line cord's plug | Phone unplugged from wall; contact technique verified by a beep end-to-end through the line cord's middle contacts | On-hook "1"; handset lifted: a number | A (on-hook) "1"; B (handset lifted) "1", with contact confirmed | **Valid result, not a fault:** at the meter's diode-test voltage the phone shows an open circuit both on- and off-hook. Consistent with an electronic hook circuit (transistors + speech chip) that only conducts under real line voltage. Off-hook detection to be verified in Phase 4 |
 
 ---
 
@@ -275,3 +275,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.5 | Phase 0 complete. Added C-16–C-24 (MB6F bridge, 3.579 MHz crystal, optical dial board PCB02, bell wiring, hook switch, empty panel, ESP32 board details). H-02, H-08 confirmed; H-03 revised to optical encoder; H-04 refined; Q-01, Q-02, Q-08 answered; D-06 updated |
 | 2026-10-30 | v1.6 | Phase 1 started: T-001 planned; multimeter model recorded |
 | 2026-10-30 | v1.7 | T-001 recorded as inconclusive; D-08 proposed (close Phase 1, move to Phase 2) |
+| 2026-10-30 | v1.8 | T-001 updated: contact confirmed, phone open-circuit both on- and off-hook at meter voltage; D-08 accepted, Phase 1 closed |
