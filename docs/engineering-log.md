@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.5)
+**Last updated:** 2026-10-30 (Log v1.6)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -85,7 +85,7 @@ ESP32 is a **thin client**: phone control + audio streaming. A separate **AI rel
 | USB breadboard power supply (3.3 V / 5 V) | 1 | | Likely unneeded |
 | 320+ component starter kit | 1 | Contents to confirm when needed | Misc. resistors/LEDs/etc. |
 | Dupont jumper wires (M-F, M-M) | assorted | | Prototyping |
-| Digital multimeter | 1 | Model to confirm | Testing |
+| Digital multimeter | 1 | AstroAI AM33D, manual-ranging, 1999 max display | Testing |
 | RJ11 adapters / connectors | assorted | Exact types to confirm | Connecting line module to phone |
 
 ### 4.3 Not owned — anticipated, NOT yet to be purchased
@@ -211,7 +211,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | ID | Date | Test | Setup | Expected | Observed | Conclusion |
 |---|---|---|---|---|---|---|
-| — | — | No tests yet | — | — | — | — |
+| T-001 | 2026-10-30 | Line-jack hook test (unpowered): AstroAI AM33D on diode-test setting, probes on the two center contacts of the phone's own line cord, plugged into LINE jack, wall end free | Phone unplugged from wall; readings on-hook, handset lifted, HANDS FREE pressed (handset down), handset lifted with probes swapped | On-hook: "1" (open). Handset lifted: a number (line path closed). HANDS FREE: may stay "1" because the phone's controller is unpowered | *pending* | *pending* |
 
 ---
 
@@ -272,3 +272,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.3 | P-07 (PCB underside) added: C-11, C-12; H-05 confirmed; H-08, H-09 added |
 | 2026-10-30 | v1.4 | Chip close-ups P-08a–c: U4 = HT9200A DTMF generator (C-13), U2 ≈ UTC1062 speech network (C-14), U3 unmarked (C-15); H-01 strongly supported; H-09 revised; H-10 added |
 | 2026-10-30 | v1.5 | Phase 0 complete. Added C-16–C-24 (MB6F bridge, 3.579 MHz crystal, optical dial board PCB02, bell wiring, hook switch, empty panel, ESP32 board details). H-02, H-08 confirmed; H-03 revised to optical encoder; H-04 refined; Q-01, Q-02, Q-08 answered; D-06 updated |
+| 2026-10-30 | v1.6 | Phase 1 started: T-001 planned; multimeter model recorded |
