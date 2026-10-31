@@ -14,15 +14,18 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-08a | `p08a-u4-closeup.jpeg` | U4 close-up: HT9200A (upside down) | 2026-10-30 |
 | P-08b | `p08b-u3-closeup.jpeg` | U3 close-up: no legible marking | 2026-10-30 |
 | P-08c | `p08c-u2-closeup.jpeg` | U2 close-up: "UTC106? / M5F2LD" | 2026-10-30 |
+| P-08d | `p08d-u6-mb6f.jpeg` | U6 close-up: MB6F bridge rectifier | 2026-10-30 |
+| P-09a | `p09a-crystal-marking.jpeg` | Crystal X1 marking "3.579…" | 2026-10-30 |
+| P-09b | `p09b-crystal-x1.jpeg` | Crystal X1 side view with silkscreen | 2026-10-30 |
+| P-10 | `p10-dial-board-pcb02.jpeg` | Dial board PCB02: HANDS FREE button, LED1–LED4 optical sensors, LD±/KG/GND ribbon, dial rear plate holes | 2026-10-30 |
+| P-11a | `p11a-hookswitch-board-underside.jpeg` | Hook-switch board underside | 2026-10-30 |
+| P-11b | `p11b-hookswitch-board-top.jpeg` | Hook-switch board top: blue switch, "HOOK" | 2026-10-30 |
+| P-12 | `p12-bell-assembly.jpeg` | Brass bell and its red/black wires to main PCB; line pair | 2026-10-30 |
+| P-13 | `p13-base-interior-panel-empty.jpeg` | Base interior: empty panel compartment, ballast plate, jacks, speaker | 2026-10-30 |
+| P-14a | `p14a-esp32-front.jpeg` | ESP32 board front: S3-N16R8 module, antenna, pin labels | 2026-10-30 |
+| P-14b | `p14b-esp32-angle.jpeg` | ESP32 board angled view | 2026-10-30 |
+| P-14c | `p14c-esp32-back.jpeg` | ESP32 board back: USB / COM labels, headers | 2026-10-30 |
 
-## Wanted (Phase 0 photo survey)
+## Wanted
 
-| ID | Shot | Answers |
-|---|---|---|
-| P-08d | Close-up of U6 (4-pin part, top-left) | H-08 |
-| P-09 | Crystal marking close-up | H-02 |
-| P-10 | Dial board, both sides | H-01 |
-| P-11 | Hook-switch board, both sides, plus 4-pin cable route | C-04 detail |
-| P-12 | Bell assembly from two angles | H-04 |
-| P-13 | Base covered panel, opened | Q-01 |
-| P-14 | ESP32 board: module end close-up and USB port labels | Q-08 |
+Phase 0 photo survey complete. New photos will be added as tests need them.

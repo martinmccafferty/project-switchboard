@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.4)
+**Last updated:** 2026-10-30 (Log v1.5)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- Next action: Phase 0 photo survey (Section 9, Phase 0 checklist).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Next action: Phase 1 — unpowered multimeter checks (not started; awaiting Martin's go-ahead).
 
 ---
 
@@ -80,7 +80,7 @@ ESP32 is a **thin client**: phone control + audio streaming. A separate **AI rel
 ### 4.2 Equipment owned
 | Item | Qty | Notes | Role in current plan |
 |---|---|---|---|
-| ESP32-S3 DevKitC-1 N16R8 (16 MB flash, 8 MB octal PSRAM) | 2 (2-pack) | Two USB-C ports; external antenna included, not connected | Main controller (one spare) |
+| ESP32-S3 DevKitC-1-style, module S3-N16R8 (16 MB flash, 8 MB octal PSRAM) | 2 (2-pack) | USB + COM USB-C ports; headers pre-soldered; external antenna included, not needed (D-06) | Main controller (one spare) |
 | 830-point breadboard | 1 | Prototyping only | Prototyping |
 | USB breadboard power supply (3.3 V / 5 V) | 1 | | Likely unneeded |
 | 320+ component starter kit | 1 | Contents to confirm when needed | Misc. resistors/LEDs/etc. |
@@ -117,6 +117,15 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-13 | U4 (8-pin SOP) is marked **HT9200A** (text reads upside down in the photo): a Holtek DTMF touch-tone generator that takes digits over a serial link and runs from a 3.58 MHz crystal | P-08a | 2026-10-30 |
 | C-14 | U2 (16-pin SOP) is marked "UTC106? / M5F2LD" (third digit partly unclear) — Unisonic (UTC) part, consistent with UTC's TEA1062 telephone speech-transmission IC sold as "1062" in SOP-16 | P-08c | 2026-10-30 |
 | C-15 | U3 (14-pin SOP) has no legible marking | P-08b | 2026-10-30 |
+| C-16 | U6 is marked **MB6F**: a 600 V / 0.5 A bridge rectifier, next to the line-input wire pair | P-08d (Martin read marking) | 2026-10-30 |
+| C-17 | Crystal X1 is marked "3.579…" — the standard 3.579545 MHz color-burst crystal used for DTMF | P-09a, P-09b | 2026-10-30 |
+| C-18 | The board behind the dial is labeled **PCB02**. It carries the HANDS FREE push-button, four black-domed optical components labeled LED1–LED4, the 9-way ribbon to the main PCB, and a separate 4-way gray ribbon labeled LD+, LD−, KG, GND running into the dial mechanism. The dial's rear plate has a row of 4 holes in line with LED1–LED4 | P-10 | 2026-10-30 |
+| C-19 | The bell is an enclosed brass gong with a center screw; it has two wires of its own (red and black) running to the main PCB, not directly to the line jack | P-12 | 2026-10-30 |
+| C-20 | The line jack connects to the main PCB with a 2-wire pair (green/red); the handset jack with a 4-wire harness (red, green, yellow, black) | P-12, P-13 | 2026-10-30 |
+| C-21 | Hook-switch board: blue switch in a white housing on a separate small board (silkscreen "HOOK"); 4-wire ribbon to the main PCB; underside shows 5 soldered switch pins | P-11a, P-11b | 2026-10-30 |
+| C-22 | The covered panel on the base opens into an empty compartment — no battery contacts or electronics. The base also contains a steel ballast plate | P-13 | 2026-10-30 |
+| C-23 | ESP32 module is marked "S3-N16R8". It has **both** a PCB trace antenna (zig-zag on the module tab) and a tiny U.FL external-antenna connector | P-14a | 2026-10-30 |
+| C-24 | ESP32 dev board: USB-C ports labeled **USB** (left, native USB-OTG) and **COM** (right, via CH343P USB-serial chip); AMS1117 3.3 V regulator; onboard RGB LED; RST and BOOT buttons. **Pin headers are already soldered** — the board plugs straight into a breadboard | P-14a–c | 2026-10-30 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
 
 ---
@@ -126,13 +135,13 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ID | Hypothesis | Basis | How we will test | Status |
 |---|---|---|---|---|
 | H-01 | The "rotary" dial is an electronic keypad emulation; the phone dials with DTMF touch tones, not pulses | * and # positions (C-02) are impossible on a pulse dial; crystal (C-05) typical of DTMF generators | IC part numbers (Phase 0); later, decode tones (Phase 4) | **Strongly supported** by C-13 (HT9200A DTMF generator on board); final confirmation by decoding tones in Phase 4 |
-| H-02 | The crystal is a ~3.58 MHz DTMF-type crystal | Typical for tone-dialer chips | Close-up photo of its marking | Strongly supported (HT9200A requires 3.58 MHz); P-09 still wanted |
-| H-03 | Ribbon functions: HF = hands-free button, L1–L4 + KG = dial encoding, LED± = indicator light | Labels only | Only needed if architecture changes (D-04) | Parked |
-| H-04 | The bell is driven by a standard ringing signal and will ring from a 1-REN SLIC | Normal analog phone design | Phase 4 ring test | Open |
+| H-02 | The crystal is a ~3.58 MHz DTMF-type crystal | Typical for tone-dialer chips | Close-up photo of its marking | **Confirmed by C-17** |
+| H-03 | The dial is an **optical encoder**: an emitter inside the dial (LD+/LD−) shines through holes in the rotating disc onto four sensors (LED1–LED4 on PCB02), giving a 4-bit position code on L1–L4; KG is a dial switch (likely "dial pulled/released"); HF is the HANDS FREE button; LED+/LED− power the emitter | C-18: four sensors aligned with 4 holes, matching L1–L4 and LD± labels | Only needed if architecture changes (D-04) | Strongly supported; parked |
+| H-04 | The bell is driven by the main PCB (which detects the line's ringing signal and powers the bell's coil), so a standard ringing signal from a 1-REN SLIC will ring it | C-19: bell wired to PCB, not directly to the line | Phase 4 ring test | Open (refined) |
 | H-05 | Handset, speaker, and bell wires are soldered directly to the main PCB (only the 9-pin and 4-pin harnesses are plug-in) | Top-side photos show wires entering board | Underside photo | **Confirmed by C-12** — reinforces D-01 |
 | H-06 | The phone behaves as a standard US loop-powered analog telephone | Designed for analog lines | Chip IDs; Phase 4 | Open |
 | H-07 | Hook switch and hands-free button both simply take the phone "off-hook" from the line's point of view | Normal phone design | Phase 4 | Open |
-| H-08 | U6 is a bridge rectifier at the line input, making the phone insensitive to line polarity | 4-pin package beside the green/red pair, typical of phone line input; supports H-06 | Chip close-up (P-08) | Open |
+| H-08 | U6 is a bridge rectifier at the line input, making the phone insensitive to line polarity | MB6F marking | — | **Confirmed by C-16** |
 | H-09 | U3 is an unmarked microcontroller that scans the dial (L1–L4/KG) and hands-free button, and sends digits serially to the HT9200A (U4) | Traces from the 9-pin connector run toward U3; HT9200A needs a controller to feed it; unmarked MCUs are common in budget phones | Phase 4 (indirect); not needed under D-01 | Revised (was: U3 = dialer) |
 | H-10 | U2 is a UTC1062 (TEA1062-type) speech network: handset mic/earpiece interface and line-powered audio | C-14 marking; 16-pin SOP matches | Datasheet comparison of pin connections if ever needed | Open |
 
@@ -147,7 +156,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-03 | No purchases until the Phase 3 decision gate | Cost control; validate first | 2026-10-30 | Active |
 | D-04 | Electrical investigation of the 9-pin ribbon is deprioritized | Not needed under D-01 | 2026-10-30 | Active |
 | D-05 | This log is the living record, kept both as a claude.ai Project doc and in the git repo | Continuity across conversations plus version history | 2026-10-30 | Active |
-| D-06 | Do not attach the external antenna yet | Depends on which ESP32 module variant the board uses (Q-08) | 2026-10-30 | Active |
+| D-06 | Use the module's built-in PCB antenna; do not fit the external antenna | C-23: module has PCB antenna (external connector is optional); revisit only if Wi-Fi is weak inside the phone | 2026-10-30 | Active (updated) |
 | D-07 | Code and docs live in private GitHub repo `martinmccafferty/project-switchboard`; secrets (Wi-Fi passwords, API keys) are never committed | Created early so history starts at Phase 0 | 2026-10-30 | Active |
 
 ---
@@ -156,14 +165,14 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | ID | Question | Needed by |
 |---|---|---|
-| Q-01 | What is behind the rectangular covered panel on the base (battery compartment)? | Phase 0 |
-| Q-02 | IC part numbers: U4 = HT9200A (C-13), U2 ≈ UTC1062 (C-14), U3 unmarked (C-15); U6 still to photograph | Phase 0 (mostly answered) |
+| ~~Q-01~~ | ~~What is behind the covered panel?~~ Answered: empty compartment (C-22) | — |
+| ~~Q-02~~ | ~~IC part numbers~~ Answered: U2 ≈ UTC1062, U3 unmarked, U4 = HT9200A, U6 = MB6F | — |
 | Q-03 | Does the phone have a tone/pulse setting anywhere? (Only VOLUME switch seen so far) | Phase 0–1 |
 | Q-04 | Where will the AI relay run (home computer, Raspberry Pi, cloud service)? | Phase 2 |
 | Q-05 | Which AI voice stack: realtime speech-to-speech API vs. speech-to-text → LLM (e.g. Claude) → text-to-speech? | Phase 2–5 |
 | Q-06 | Google Home integration: ESP32 as a Matter device (good for "ring the phone" notifications); control in the other direction still unresolved | Phase 7 |
 | Q-07 | Solder-free permanent assembly method (pre-made carrier board, screw terminals, etc.) | Phase 8 |
-| Q-08 | ESP32 module variant: built-in PCB antenna (WROOM-1) or external-antenna-only (WROOM-1U, tiny round connector)? | Phase 2 |
+| ~~Q-08~~ | ~~ESP32 antenna variant~~ Answered: PCB antenna + optional U.FL (C-23) | — |
 | Q-09 | Which audio codec board, and is the existing USB power adequate? | Phase 3 |
 | ~~Q-10~~ | ~~Does Martin have a GitHub account?~~ Answered: yes — repo created (D-07) | — |
 
@@ -173,8 +182,8 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | Phase | Scope | Purchases | Status |
 |---|---|---|---|
-| 0 | Photo survey & part identification; set up this log and repo | None | **In progress** |
-| 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Not started |
+| 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
+| 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | **Next** |
 | 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | Not started |
 | 3 | **Decision gate**: commit architecture; order line module + codec (+ PSU if needed) | Yes | Not started |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
@@ -186,16 +195,15 @@ Purchase decision happens at the Phase 3 gate (D-03).
 ### Phase 0 checklist (phone unplugged from any wall jack, no power)
 - [x] Engineering log created
 - [x] GitHub repo created and seeded
-- [x] Hook switch identified (C-04)
-- [x] Photo: underside of main PCB (P-07)
-- [x] Close-ups of U2, U3, U4 (P-08a–c)
-- [ ] Close-up of U6 (top-left 4-pin part)
-- [ ] Close-up: crystal marking
-- [ ] Photos: both sides of the green dial board
-- [ ] Photo: hook-switch board and 4-pin cable route
-- [ ] Photo: bell assembly (coil / striker)
-- [ ] Identify what is behind the base's rectangular panel (Q-01)
-- [ ] Photo: ESP32 board close-up of the module end (antenna type, Q-08) and USB port labels
+- [x] Hook switch identified (C-04, C-21)
+- [x] Main PCB underside (P-07)
+- [x] Chip close-ups U2, U3, U4, U6 (P-08a–d)
+- [x] Crystal (P-09a–b)
+- [x] Dial board (P-10)
+- [x] Hook-switch board (P-11a–b)
+- [x] Bell (P-12)
+- [x] Base panel (P-13)
+- [x] ESP32 board (P-14a–c)
 
 ---
 
@@ -225,10 +233,14 @@ Purchase decision happens at the Phase 3 gate (D-03).
 ### 11.2 Telephone main PCB — 4-pin connector
 Connects hook-switch board to main PCB (C-04). Pin functions not investigated (not needed under D-01).
 
-### 11.3 ESP32-S3 DevKitC-1 N16R8 — notes (general knowledge, verify against the actual board)
-- Two USB-C ports: typically one labeled **USB** (the chip's native USB) and one labeled **UART/COM** (via a USB-to-serial chip). Either can power and program the board.
-- "R8" = octal PSRAM, which occupies GPIO 35, 36 and 37 — avoid these pins.
-- Onboard RGB LED is usually on GPIO 48 (GPIO 38 on some board revisions).
+### 11.3 ESP32-S3 dev board (S3-N16R8) — as observed (P-14a–c)
+- Module: S3-N16R8 (16 MB flash, 8 MB octal PSRAM), PCB antenna + optional U.FL connector (D-06: use PCB antenna).
+- USB-C ports: **USB** (left) = chip's native USB-OTG; **COM** (right) = CH343P USB-to-serial. Either powers and programs the board.
+- Pin headers pre-soldered; breadboard-ready.
+- Left header (top→bottom): 3V3, 3V3, RST, 4, 5, 6, 7, 15, 16, 17, 18, 8, 3, 46, 9, 10, 11, 12, 13, 14, 5Vin, GND.
+- Right header (top→bottom): GND, TX, RX, 1, 2, 42, 41, 40, 39, 38, 37, 36, 35, 0, 45, 48, 47, 21, 20, 19, GND, GND.
+- Avoid: GPIO 35, 36, 37 (used by octal PSRAM); GPIO 0, 3, 45, 46 (boot-strapping pins); GPIO 19/20 (native USB).
+- Onboard RGB LED near GPIO 48 (to verify in Phase 2).
 - No wiring done yet.
 
 ---
@@ -247,7 +259,7 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - **UTC TEA1062 datasheet** (likely U2) — https://html.alldatasheet.jp/html-pdf/424974/UTC/TEA1062N-D16-T/597/9/TEA1062N-D16-T.html
 - **Silvertel AG1171 datasheet** — https://static.chipdip.ru/lib/300/DOC029300244.pdf
 - Original ChatGPT handover: "Project Switchboard v1-0.docx" (superseded where this log differs).
-- **Photos:** `docs/photos/` — P-01 to P-08c committed; P-09 to P-14 wanted (plus U6 close-up). Index and shot list in `docs/photos/README.md`.
+- **Photos:** `docs/photos/` — P-01 to P-14c committed (Phase 0 survey complete). Index and shot list in `docs/photos/README.md`.
 
 ---
 
@@ -259,3 +271,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.2 | Original six photos committed as P-01–P-06; Phase 0 shot list defined as P-07–P-14 |
 | 2026-10-30 | v1.3 | P-07 (PCB underside) added: C-11, C-12; H-05 confirmed; H-08, H-09 added |
 | 2026-10-30 | v1.4 | Chip close-ups P-08a–c: U4 = HT9200A DTMF generator (C-13), U2 ≈ UTC1062 speech network (C-14), U3 unmarked (C-15); H-01 strongly supported; H-09 revised; H-10 added |
+| 2026-10-30 | v1.5 | Phase 0 complete. Added C-16–C-24 (MB6F bridge, 3.579 MHz crystal, optical dial board PCB02, bell wiring, hook switch, empty panel, ESP32 board details). H-02, H-08 confirmed; H-03 revised to optical encoder; H-04 refined; Q-01, Q-02, Q-08 answered; D-06 updated |
