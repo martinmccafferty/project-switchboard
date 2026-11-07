@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.22)
+**Last updated:** 2026-11-07 (Log v1.23)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). Next: Phase 3 decision gate (choose and order line module + audio codec).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). **Phase 3:** architecture committed (D-01); shopping list at `docs/phase3-shopping-list.md` (DigiKey: 2 × AG1171 + small parts, ~$25); codec deferred (D-14). Waiting on Martin's order. Meanwhile: Phase 2 audio-streaming throughput test (test B).
 
 ---
 
@@ -110,8 +110,8 @@ Purchase decision happens at the Phase 3 gate (D-03).
 **Non-device capabilities wanted:** reminders with ring-back, weather, online lookups. All handled by the relay and AI tools; no home hardware needed.
 
 ---|---|---|
-| SLIC line module (Silvertel AG1171 or equivalent) | Line voltage, ringing, hook detection | ~$8.50 (DigiKey, Oct 2026) + shipping |
-| I2S audio codec board (e.g. ES8388-based) | ESP32-S3 has no built-in analog audio output/input suitable for this | TBD |
+| SLIC line module (Silvertel AG1171) ×2 + support parts | Line voltage, ringing, hook detection; see `docs/phase3-shopping-list.md` | ~$25 + shipping (DigiKey) |
+| I2S audio codec board | Deferred (D-14): try ESP32-S3 built-in ADC + PDM output first | Only if needed |
 | Possibly a 5 V / 2 A USB power adapter | Telephony can draw ~450–500 mA off-hook/ringing plus ESP32 Wi-Fi peaks | TBD |
 
 ---
@@ -175,7 +175,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 
 | ID | Decision | Rationale | Date | Status |
 |---|---|---|---|---|
-| D-01 | Architecture: treat the phone as a stock black box; ESP32-S3 + SLIC + audio codec emulate a phone line | Solves power, bell, dial, hands-free and reversibility at once; proven by open-source projects (weeBell, RotaryCell) | 2026-10-30 | Accepted in principle; commit at Phase 3 gate |
+| D-01 | Architecture: treat the phone as a stock black box; ESP32-S3 + SLIC (+ audio conversion, see D-14) emulate a phone line | Solves power, bell, dial, hands-free and reversibility at once; proven by open-source projects (weeBell, RotaryCell). Phase 0–2 found nothing against it | 2026-10-30 | **Committed** at Phase 3 gate (2026-11-07) |
 | D-02 | ESP32 is a thin client; AI and smart-home logic live in a separate relay service | Keeps keys off device; provider changes need no reflash | 2026-10-30 | Accepted in principle |
 | D-03 | No purchases until the Phase 3 decision gate | Cost control; validate first | 2026-10-30 | Active |
 | D-04 | Electrical investigation of the 9-pin ribbon is deprioritized | Not needed under D-01 | 2026-10-30 | Active |
@@ -188,6 +188,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-11 | AI relay hosting: develop and test on Martin's Mac now; production on **Railway** | Martin wants the phone to be **portable** (take it elsewhere, join that Wi-Fi, still work). A cloud relay is reachable from any internet connection; a home server would need remote-access setup (port forwarding or a VPN like Tailscale) to work away from home. Also: Railway needs no purchase, ~$5/month plan, already proven in Martin's stack (Continuum engine). Home server remains an *optional* later add-on only if Phase 7 needs local smart-home control. Google Nest Mini, SwitchBot, WiiM ruled out as hosts (closed firmware). Vercel ruled out (WebSockets end at function max duration, billed while open) | 2026-11-07 | Active (revised twice same day) |
 | D-12 | Wi-Fi set-up without reprogramming: when the phone can't join a saved network, it starts its own temporary Wi-Fi hotspot (e.g. "Switchboard-Setup"); Martin joins it from his mobile, a set-up page opens, he picks the network and enters the password; the phone saves it (remembering several networks, e.g. home plus others). Likely via the WiFiManager library. `secrets.h` stays only for bench development until this is built | Portability goal. Known limits: Wi-Fi with a browser sign-in page (hotels, cafés) and corporate (WPA2-Enterprise) networks won't work; a mobile hotspot is the fallback | 2026-11-07 | Active — build after core phone functions work |
 | D-13 | Smart-home principle: the relay talks to each device maker's own service directly (SwitchBot, SmartThings, Cync, etc.), **bypassing Google Home** as the control path. Google Home and its voice control keep working in parallel, untouched | Martin's stated preference; also Google Home has no general server-side control API | 2026-11-07 | Active |
+| D-14 | **Defer the audio codec board.** First try the ESP32-S3's built-in converters: ADC1 samples the AG1171's VOUT (biased to mid-supply), and PDM or sigma-delta output through an RC filter drives VIN, at telephone bandwidth (300–3400 Hz, 8–16 kHz sampling). Buy a codec only if quality proves inadequate | Minimize purchases. Telephone audio is narrowband, so built-in converters may suffice. Solder-free codec boards with line-level I/O proved scarce: SparkFun WM8960 with headers is retired, the weeBell POTS shield is sold out, and most modules ship with loose headers | 2026-11-07 | Active (revisit after first audio tests) |
 
 ---
 
@@ -206,6 +207,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | Q-09 | Which audio codec board, and is the existing USB power adequate? | Phase 3 |
 | ~~Q-10~~ | ~~Does Martin have a GitHub account?~~ Answered: yes — repo created (D-07) | — |
 | Q-11 | Smart-home control path for the **Cync lights**: first try SmartThings via The Frame's built-in hub (qualifies); fall back to Home Assistant at home or Cync's private API. To test in Phase 7: whether the TV hub keeps working in standby. Still to confirm: whether a SwitchBot Hub exists | Phase 7 |
+| Q-12 | AG1171 logic levels: with the module on 5 V, is its SHK output 5 V (would need a resistor divider before the 3.3 V ESP32 input), and do its RM and F/R inputs accept 3.3 V as logic high? Check datasheet DC characteristics before wiring | Phase 4 wiring |
 
 ---
 
@@ -216,7 +218,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
 | 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 showed open circuit at meter voltage |
 | 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | **In progress** (D-09) |
-| 3 | **Decision gate**: commit architecture; order line module + codec (+ PSU if needed) | Yes | Not started |
+| 3 | **Decision gate**: commit architecture; order line module (codec deferred, D-14) | Yes | **In progress**: list ready, awaiting order |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
 | 5 | AI conversation through the handset | — | Not started |
 | 6 | Hands-free with echo cancellation | — | Not started |
@@ -324,3 +326,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.20 | TV models recorded; The Frame (2024) qualifies as a SmartThings hub; Q-11 updated |
 | 2026-11-07 | v1.21 | T-004 passed (relay running on Mac at 192.168.1.87:8080); sketch `02-relay-hello` added; T-005 planned |
 | 2026-11-07 | v1.22 | T-005 passed: board ↔ relay round trip working; Phase 2 core complete |
+| 2026-11-07 | v1.23 | Phase 3: architecture committed; shopping list created; D-14 defer codec; Q-12 logic levels |
