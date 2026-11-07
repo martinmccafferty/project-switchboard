@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.20)
+**Last updated:** 2026-11-07 (Log v1.21)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 relay start, then T-005 board connects).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 relay start **passed**; T-005 board connects, pending).
 
 ---
 
@@ -146,7 +146,8 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-25 | esptool report: ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 (LE), dual core 240 MHz, embedded 8 MB PSRAM, 40 MHz crystal, USB mode USB-Serial/JTAG | T-002 upload log | 2026-11-07 |
 | C-26 | Onboard RGB LED is on **GPIO 48** | T-002 | 2026-11-07 |
 | T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | LED green; CONNECTED; signal steady at −35 to −36 dBm (excellent). Port shown as `/dev/cu.usbmodem101` with USB CDC On Boot enabled | **Pass.** Wi-Fi works with the built-in PCB antenna (supports D-06). Signal inside the closed phone at its final location still to be checked later |
-| T-004 | 2026-11-07 | Relay hello: `relay/server.mjs` running on the Mac (Node v24.16.0) | `npm install ws`, `node server.mjs` in `~/switchboard-relay` | Prints "listening on port 8080" and the Mac's local IP address | *pending* | *pending* |
+| T-004 | 2026-11-07 | Relay hello: `relay/server.mjs` running on the Mac (Node v24.16.0) | `npm install ws`, `node server.mjs` in `~/switchboard-relay` | Prints "listening on port 8080" and the Mac's local IP address | "Switchboard relay listening on port 8080"; "Board should connect to: 192.168.1.87 (port 8080)" | **Pass.** Note: the Mac's local address can change (assigned by the router); if the board can't find the relay later, re-check it |
+| T-005 | 2026-11-07 | Board ↔ relay round trip: `02-relay-hello` joins Wi-Fi, opens a WebSocket to the relay on the Mac, sends a greeting and a message every 10 s; relay replies | Library "WebSockets" by Markus Sattler; secrets.h with RELAY_HOST 192.168.1.87, port 8080 | LED green; Serial Monitor shows relay replies; Terminal shows "Phone connected" and the messages | *pending* | *pending* |
 | C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
 | C-28 | Home Wi-Fi is a single network name broadcasting both 2.4 GHz and 5 GHz; existing smart bulbs etc. connect on 2.4 GHz (seen in the Spectrum app) | Martin | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
@@ -321,3 +322,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.18 | Smart-home inventory and control-route research added (section 4.4); Q-11 narrowed to the Cync lights |
 | 2026-11-07 | v1.19 | D-13: control devices directly, bypassing Google Home |
 | 2026-11-07 | v1.20 | TV models recorded; The Frame (2024) qualifies as a SmartThings hub; Q-11 updated |
+| 2026-11-07 | v1.21 | T-004 passed (relay running on Mac at 192.168.1.87:8080); sketch `02-relay-hello` added; T-005 planned |
