@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.10)
+**Last updated:** 2026-11-07 (Log v1.11)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 = upload `00-blink` to light the onboard RGB LED (T-002).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Next: step 3 = connect to home Wi-Fi.
 
 ---
 
@@ -126,6 +126,9 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-22 | The covered panel on the base opens into an empty compartment — no battery contacts or electronics. The base also contains a steel ballast plate | P-13 | 2026-10-30 |
 | C-23 | ESP32 module is marked "S3-N16R8". It has **both** a PCB trace antenna (zig-zag on the module tab) and a tiny U.FL external-antenna connector | P-14a | 2026-10-30 |
 | C-24 | ESP32 dev board: USB-C ports labeled **USB** (left, native USB-OTG) and **COM** (right, via CH343P USB-serial chip); AMS1117 3.3 V regulator; onboard RGB LED; RST and BOOT buttons. **Pin headers are already soldered** — the board plugs straight into a breadboard | P-14a–c | 2026-10-30 |
+| C-25 | esptool report: ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 (LE), dual core 240 MHz, embedded 8 MB PSRAM, 40 MHz crystal, USB mode USB-Serial/JTAG | T-002 upload log | 2026-11-07 |
+| C-26 | Onboard RGB LED is on **GPIO 48** | T-002 | 2026-11-07 |
+| C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
 
 ---
@@ -214,7 +217,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ID | Date | Test | Setup | Expected | Observed | Conclusion |
 |---|---|---|---|---|---|---|
 | T-001 | 2026-10-30 | Line-jack hook test (unpowered): AstroAI AM33D on diode-test setting, probes via male-male Dupont pins pushed into the phone line cord's plug | Phone unplugged from wall; contact technique verified by a beep end-to-end through the line cord's middle contacts | On-hook "1"; handset lifted: a number | A (on-hook) "1"; B (handset lifted) "1", with contact confirmed | **Valid result, not a fault:** at the meter's diode-test voltage the phone shows an open circuit both on- and off-hook. Consistent with an electronic hook circuit (transistors + speech chip) that only conducts under real line voltage. Off-hook detection to be verified in Phase 4 |
-| T-002 | 2026-11-07 | First upload: `00-blink` cycles onboard RGB LED red/green/blue/off | Board on Mac via native USB port; Tools → Board: ESP32S3 Dev Module | LED cycles colors every 0.5 s | *pending* | *pending* |
+| T-002 | 2026-11-07 | First upload: `00-blink` cycles onboard RGB LED red/green/blue/off | Board on Mac via native **USB** port; Tools → Board: ESP32S3 Dev Module; IDE 2.3.10, core 3.3.12 | LED cycles colors every 0.5 s | Auto-upload failed ("No serial data received") on `/dev/cu.usbmodem1234561`. After manual upload mode (hold BOOT, tap RST, release BOOT) the port re-appeared as `/dev/cu.usbmodem101`; upload completed and verified. After pressing RST, LED cycled red → green → blue → off | **Pass.** Board, cable, toolchain and upload path all work. Onboard RGB LED is on GPIO 48 |
 
 ---
 
@@ -243,7 +246,8 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - Left header (top→bottom): 3V3, 3V3, RST, 4, 5, 6, 7, 15, 16, 17, 18, 8, 3, 46, 9, 10, 11, 12, 13, 14, 5Vin, GND.
 - Right header (top→bottom): GND, TX, RX, 1, 2, 42, 41, 40, 39, 38, 37, 36, 35, 0, 45, 48, 47, 21, 20, 19, GND, GND.
 - Avoid: GPIO 35, 36, 37 (used by octal PSRAM); GPIO 0, 3, 45, 46 (boot-strapping pins); GPIO 19/20 (native USB).
-- Onboard RGB LED near GPIO 48 (to verify in Phase 2).
+- Onboard RGB LED on GPIO 48 (confirmed, C-26).
+- **Upload procedure (C-27):** hold BOOT, tap RST, release BOOT → Tools → Port → pick the `usbmodem…` entry → Upload → press RST.
 - No wiring done yet.
 
 ---
@@ -282,3 +286,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.8 | T-001 updated: contact confirmed, phone open-circuit both on- and off-hook at meter voltage; D-08 accepted, Phase 1 closed |
 | 2026-11-07 | v1.9 | Phase 2 started; D-09 toolchain decision (Arduino IDE 2 on Mac) |
 | 2026-11-07 | v1.10 | Toolchain installed (IDE 2.3.10, core 3.3.12); first sketch `00-blink` added; T-002 planned |
+| 2026-11-07 | v1.11 | T-002 passed: first successful upload, LED blinking; C-25–C-27 added (chip details, LED on GPIO 48, manual upload procedure) |
