@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.25)
+**Last updated:** 2026-11-07 (Log v1.26)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -157,6 +157,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | LED green; CONNECTED; signal steady at −35 to −36 dBm (excellent). Port shown as `/dev/cu.usbmodem101` with USB CDC On Boot enabled | **Pass.** Wi-Fi works with the built-in PCB antenna (supports D-06). Signal inside the closed phone at its final location still to be checked later |
 | T-004 | 2026-11-07 | Relay hello: `relay/server.mjs` running on the Mac (Node v24.16.0) | `npm install ws`, `node server.mjs` in `~/switchboard-relay` | Prints "listening on port 8080" and the Mac's local IP address | "Switchboard relay listening on port 8080"; "Board should connect to: 192.168.1.87 (port 8080)" | **Pass.** Note: the Mac's local address can change (assigned by the router); if the board can't find the relay later, re-check it |
 | T-005 | 2026-11-07 | Board ↔ relay round trip: `02-relay-hello` joins Wi-Fi, opens a WebSocket to the relay on the Mac, sends a greeting and a message every 10 s; relay replies | Library "WebSockets" by Markus Sattler; secrets.h with RELAY_HOST 192.168.1.87, port 8080 | LED green; relay logs the connection and messages | Relay log: "Phone connected from 192.168.1.56", "Hello from the phone!", "Still here #1", "#2" at ~10 s intervals | **Pass.** Persistent two-way connection between board and relay works on the home network. Board's address: 192.168.1.56 |
+| T-006 | 2026-11-07 | Test B, audio throughput: `03-audio-stream` sends a 440 Hz tone as 16 kHz 16-bit mono (256 kbit/s) in 20 ms frames for 60 s; relay echoes each frame, reports rate and frame spacing, saves `test-tone.wav` | Board on bench, Wi-Fi power-save off; relay on Mac | ~3,000 frames received; ~256 kbit/s; average spacing ~20 ms; under 1% of gaps over 60 ms; echo ~100%; WAV plays a clean steady tone | *pending* | *pending* |
 | C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
 | C-28 | Home Wi-Fi is a single network name broadcasting both 2.4 GHz and 5 GHz; existing smart bulbs etc. connect on 2.4 GHz (seen in the Spectrum app) | Martin | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
@@ -340,3 +341,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.23 | Phase 3: architecture committed; shopping list created; D-14 defer codec; Q-12 logic levels |
 | 2026-11-07 | v1.24 | AG1171 sourcing: DigiKey/Newark backordered; Symmetry Electronics in stock |
 | 2026-11-07 | v1.25 | Parts ordered (section 4.5 costs); D-15 public build guide; `docs/build-guide-notes.md` started; Phase 9 added |
+| 2026-11-07 | v1.26 | Test B prepared: sketch `03-audio-stream`, relay audio-test support; T-006 planned |
