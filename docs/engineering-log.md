@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.18)
+**Last updated:** 2026-11-07 (Log v1.19)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -186,6 +186,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-10 | Secrets (Wi-Fi credentials, later API keys) go in a per-sketch `secrets.h`, ignored by git; a `secrets.h.example` template is committed instead | Keeps credentials off GitHub (D-07) | 2026-11-07 | Active |
 | D-11 | AI relay hosting: develop and test on Martin's Mac now; production on **Railway** | Martin wants the phone to be **portable** (take it elsewhere, join that Wi-Fi, still work). A cloud relay is reachable from any internet connection; a home server would need remote-access setup (port forwarding or a VPN like Tailscale) to work away from home. Also: Railway needs no purchase, ~$5/month plan, already proven in Martin's stack (Continuum engine). Home server remains an *optional* later add-on only if Phase 7 needs local smart-home control. Google Nest Mini, SwitchBot, WiiM ruled out as hosts (closed firmware). Vercel ruled out (WebSockets end at function max duration, billed while open) | 2026-11-07 | Active (revised twice same day) |
 | D-12 | Wi-Fi set-up without reprogramming: when the phone can't join a saved network, it starts its own temporary Wi-Fi hotspot (e.g. "Switchboard-Setup"); Martin joins it from his mobile, a set-up page opens, he picks the network and enters the password; the phone saves it (remembering several networks, e.g. home plus others). Likely via the WiFiManager library. `secrets.h` stays only for bench development until this is built | Portability goal. Known limits: Wi-Fi with a browser sign-in page (hotels, cafés) and corporate (WPA2-Enterprise) networks won't work; a mobile hotspot is the fallback | 2026-11-07 | Active — build after core phone functions work |
+| D-13 | Smart-home principle: the relay talks to each device maker's own service directly (SwitchBot, SmartThings, Cync, etc.), **bypassing Google Home** as the control path. Google Home and its voice control keep working in parallel, untouched | Martin's stated preference; also Google Home has no general server-side control API | 2026-11-07 | Active |
 
 ---
 
@@ -318,3 +319,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.16 | Portability requirement: D-11 settled on Railway for production; D-12 Wi-Fi set-up hotspot planned |
 | 2026-11-07 | v1.17 | Target experience recorded (dial 0, lights, blinds, reminders with ring-back); Q-11 smart-home control path; relay hello-world added; T-004 planned |
 | 2026-11-07 | v1.18 | Smart-home inventory and control-route research added (section 4.4); Q-11 narrowed to the Cync lights |
+| 2026-11-07 | v1.19 | D-13: control devices directly, bypassing Google Home |
