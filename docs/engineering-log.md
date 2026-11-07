@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.12)
+**Last updated:** 2026-11-07 (Log v1.13)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Next: step 3 = connect to home Wi-Fi with `01-wifi` (T-003).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Next: step 4 = decide where the AI relay runs (Q-04), then a first round-trip message from the board to it.
 
 ---
 
@@ -128,7 +128,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-24 | ESP32 dev board: USB-C ports labeled **USB** (left, native USB-OTG) and **COM** (right, via CH343P USB-serial chip); AMS1117 3.3 V regulator; onboard RGB LED; RST and BOOT buttons. **Pin headers are already soldered** — the board plugs straight into a breadboard | P-14a–c | 2026-10-30 |
 | C-25 | esptool report: ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 (LE), dual core 240 MHz, embedded 8 MB PSRAM, 40 MHz crystal, USB mode USB-Serial/JTAG | T-002 upload log | 2026-11-07 |
 | C-26 | Onboard RGB LED is on **GPIO 48** | T-002 | 2026-11-07 |
-| T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | *pending* | *pending* |
+| T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | LED green; CONNECTED; signal steady at −35 to −36 dBm (excellent). Port shown as `/dev/cu.usbmodem101` with USB CDC On Boot enabled | **Pass.** Wi-Fi works with the built-in PCB antenna (supports D-06). Signal inside the closed phone at its final location still to be checked later |
 | C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
 | C-28 | Home Wi-Fi is a single network name broadcasting both 2.4 GHz and 5 GHz; existing smart bulbs etc. connect on 2.4 GHz (seen in the Spectrum app) | Martin | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
@@ -291,3 +291,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.10 | Toolchain installed (IDE 2.3.10, core 3.3.12); first sketch `00-blink` added; T-002 planned |
 | 2026-11-07 | v1.11 | T-002 passed: first successful upload, LED blinking; C-25–C-27 added (chip details, LED on GPIO 48, manual upload procedure) |
 | 2026-11-07 | v1.12 | Sketch `01-wifi` added; T-003 planned; C-28 (home Wi-Fi is dual-band single name); D-10 (secrets handling) |
+| 2026-11-07 | v1.13 | T-003 passed: board on home Wi-Fi, −35 dBm |
