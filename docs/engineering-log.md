@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.19)
+**Last updated:** 2026-11-07 (Log v1.20)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -102,7 +102,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | GE/Savant **Cync** Full Color bulbs (Matter-enabled; HW 1.0, SW 1.03.190) | 15: Dining Table Light 1–5 (BR30), Living Room (Left-side TV Lamp, Right-side TV Lamp, Pendant Lamp), Reading Room (Standing Lamp, Table Lamp), Office (Main Lamp), Master Bedroom (Bedside Lamp 1–2), Guest Bedroom (Lamp 1–2) | **No official public Cync API.** Options: (a) share the bulbs via Matter into **SmartThings** (Samsung TVs from 2022 onward, incl. The Frame, can act as a SmartThings/Matter hub) and control through the SmartThings cloud API, no purchase; (b) **Home Assistant** at home as a Matter controller or via its Cync cloud integration, reached securely from Railway, needs a small device; (c) Cync's private cloud API directly, fragile | Open (key Phase 7 question) |
 | **SwitchBot** Blind Tilt | 4: Blind Tilt 1–3 (living room), 4 (dining room) | SwitchBot official cloud API from Railway (requires a SwitchBot Hub, likely present since they appear in Google Home) | High |
 | **SwitchBot** Curtain | 1: "Curtain 47" (dining room) | Same as above | High |
-| Samsung TVs | The Frame 65" (living room), Samsung 75" (master bedroom) | SmartThings cloud API | High (low priority to Martin) |
+| Samsung TVs | The Frame 65" **QN65LS03DAFXZA (2024)** (living room): listed by Samsung as having a built-in SmartThings hub (Thread border router, Matter controller), so a candidate for Cync route (a); Samsung 75" **U7900 (2025)** (master bedroom): not on the hub list | SmartThings cloud API | High (low priority to Martin) |
 | Google Nest Doorbell (wired, 3rd gen) | 1 | Google Device Access (one-time $5 fee): doorbell-press events could **ring the phone**. Some 3rd-gen units have had missing chime events; reported workaround | Medium (stretch goal) |
 | WiiM streamer → Herdio HWA16BT amp → built-in speakers; turntable into WiiM | 1 | WiiM has a local-network-only API, so it needs a hub at home | Low priority |
 | Kitchen island lights (SmartRent, landlord-owned) | — | No public API; out of scope | — |
@@ -204,7 +204,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ~~Q-08~~ | ~~ESP32 antenna variant~~ Answered: PCB antenna + optional U.FL (C-23) | — |
 | Q-09 | Which audio codec board, and is the existing USB power adequate? | Phase 3 |
 | ~~Q-10~~ | ~~Does Martin have a GitHub account?~~ Answered: yes — repo created (D-07) | — |
-| Q-11 | Smart-home control path for the **Cync lights** (15 bulbs, the bulk of the devices): SmartThings via the Samsung TV hub (free if the TVs qualify) vs Home Assistant at home vs Cync private API. Other devices have clear cloud routes (section 4.4). Facts needed: TV model years; whether a SwitchBot Hub exists | Phase 7 |
+| Q-11 | Smart-home control path for the **Cync lights**: first try SmartThings via The Frame's built-in hub (qualifies); fall back to Home Assistant at home or Cync's private API. To test in Phase 7: whether the TV hub keeps working in standby. Still to confirm: whether a SwitchBot Hub exists | Phase 7 |
 
 ---
 
@@ -320,3 +320,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.17 | Target experience recorded (dial 0, lights, blinds, reminders with ring-back); Q-11 smart-home control path; relay hello-world added; T-004 planned |
 | 2026-11-07 | v1.18 | Smart-home inventory and control-route research added (section 4.4); Q-11 narrowed to the Cync lights |
 | 2026-11-07 | v1.19 | D-13: control devices directly, bypassing Google Home |
+| 2026-11-07 | v1.20 | TV models recorded; The Frame (2024) qualifies as a SmartThings hub; Q-11 updated |
