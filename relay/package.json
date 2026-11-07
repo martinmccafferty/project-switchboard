@@ -1,0 +1,11 @@
+{
+  "name": "switchboard-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Switchboard AI relay (step 4: hello-world WebSocket server)",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "ws": "^8.18.0" },
+  "engines": { "node": ">=20" }
+}

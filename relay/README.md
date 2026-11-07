@@ -1,3 +1,6 @@
 # AI relay
 
-Service that handles speech, LLM, and smart-home logic for the phone. Empty until Phase 2.
+Node.js service that sits between the phone and the AI/smart-home services (D-02).
+Development: runs on the Mac (`npm install` then `npm start`). Production: Railway (D-11).
+
+Current stage: hello-world WebSocket server (`server.mjs`).

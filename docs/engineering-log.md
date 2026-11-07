@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.16)
+**Last updated:** 2026-11-07 (Log v1.17)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,13 +15,15 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay running on the Mac.
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 relay start, then T-005 board connects).
 
 ---
 
 ## 2. Goal and constraints
 
 **Goal:** Turn a TelPal 301-Ivory retro telephone into a Wi-Fi AI telephone and smart-home interface that still feels like a genuine old-fashioned phone.
+
+**Target experience (stated 2026-11-07):** dial **0** to reach the AI "operator"; ask it to turn lights on, close the blinds, set a reminder, and have the phone **ring back** when the reminder is due. Smart-home control is a core requirement, not optional.
 
 **Constraints (from Martin):**
 - Solder-free if at all possible; reversible modifications.
@@ -130,6 +132,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-25 | esptool report: ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 (LE), dual core 240 MHz, embedded 8 MB PSRAM, 40 MHz crystal, USB mode USB-Serial/JTAG | T-002 upload log | 2026-11-07 |
 | C-26 | Onboard RGB LED is on **GPIO 48** | T-002 | 2026-11-07 |
 | T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | LED green; CONNECTED; signal steady at −35 to −36 dBm (excellent). Port shown as `/dev/cu.usbmodem101` with USB CDC On Boot enabled | **Pass.** Wi-Fi works with the built-in PCB antenna (supports D-06). Signal inside the closed phone at its final location still to be checked later |
+| T-004 | 2026-11-07 | Relay hello: `relay/server.mjs` running on the Mac (Node v24.16.0) | `npm install ws`, `node server.mjs` in `~/switchboard-relay` | Prints "listening on port 8080" and the Mac's local IP address | *pending* | *pending* |
 | C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
 | C-28 | Home Wi-Fi is a single network name broadcasting both 2.4 GHz and 5 GHz; existing smart bulbs etc. connect on 2.4 GHz (seen in the Spectrum app) | Martin | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
@@ -186,6 +189,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ~~Q-08~~ | ~~ESP32 antenna variant~~ Answered: PCB antenna + optional U.FL (C-23) | — |
 | Q-09 | Which audio codec board, and is the existing USB power adequate? | Phase 3 |
 | ~~Q-10~~ | ~~Does Martin have a GitHub account?~~ Answered: yes — repo created (D-07) | — |
+| Q-11 | Smart-home control path: which lights, blinds and other devices (brands) need controlling, and can each be reached from a cloud relay via its maker's online API (e.g. SwitchBot has one), or is a hub at home needed (e.g. Home Assistant reached securely from Railway)? Google Home itself has no general server-side control API, so it is likely not the control route | Phase 7 (device inventory welcome any time) |
 
 ---
 
@@ -262,7 +266,7 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - None yet.
 - Repo layout: `firmware/` (ESP32-S3), `relay/` (AI relay service), `docs/` (this log, photos, pinouts).
 - Toolchain: Arduino IDE 2 + Arduino-ESP32 core (D-09). Board-support URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-- Development machine: Martin's Mac. Installed 2026-11-07: Arduino IDE 2.3.10; "esp32 by Espressif Systems" core 3.3.12.
+- Development machine: Martin's Mac (Node.js v24.16.0 installed). Installed 2026-11-07: Arduino IDE 2.3.10; "esp32 by Espressif Systems" core 3.3.12.
 - Sketches live in `firmware/<nn-name>/<nn-name>.ino` (Arduino requires the folder and file names to match). First sketch: `firmware/00-blink`.
 
 ---
@@ -298,3 +302,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.14 | D-11 relay hosting (Mac now, Railway later); Q-04 answered; upload now works without BOOT/RST buttons |
 | 2026-11-07 | v1.15 | D-11 revised: production host deferred (Railway vs home server); Q-04 reopened for Phase 7 |
 | 2026-11-07 | v1.16 | Portability requirement: D-11 settled on Railway for production; D-12 Wi-Fi set-up hotspot planned |
+| 2026-11-07 | v1.17 | Target experience recorded (dial 0, lights, blinds, reminders with ring-back); Q-11 smart-home control path; relay hello-world added; T-004 planned |
