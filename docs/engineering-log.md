@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.11)
+**Last updated:** 2026-11-07 (Log v1.12)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Next: step 3 = connect to home Wi-Fi.
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Next: step 3 = connect to home Wi-Fi with `01-wifi` (T-003).
 
 ---
 
@@ -128,7 +128,9 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-24 | ESP32 dev board: USB-C ports labeled **USB** (left, native USB-OTG) and **COM** (right, via CH343P USB-serial chip); AMS1117 3.3 V regulator; onboard RGB LED; RST and BOOT buttons. **Pin headers are already soldered** — the board plugs straight into a breadboard | P-14a–c | 2026-10-30 |
 | C-25 | esptool report: ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 (LE), dual core 240 MHz, embedded 8 MB PSRAM, 40 MHz crystal, USB mode USB-Serial/JTAG | T-002 upload log | 2026-11-07 |
 | C-26 | Onboard RGB LED is on **GPIO 48** | T-002 | 2026-11-07 |
+| T-003 | 2026-11-07 | Wi-Fi join: `01-wifi` connects to home network, prints IP, MAC, channel and signal strength every 5 s; LED blue = connecting, green = connected, red = failed | Board on bench next to Mac; USB CDC On Boot: Enabled; Serial Monitor 115200 baud | Connects within 20 s; signal "good" or better on the bench | *pending* | *pending* |
 | C-27 | Uploading over the native USB port needs **manual upload mode** (hold BOOT, tap RST, release BOOT), re-selecting the port afterward because its name changes (seen: `usbmodem1234561` in normal running, `usbmodem101` in upload mode). Press RST after upload to start the new program | T-002 | 2026-11-07 |
+| C-28 | Home Wi-Fi is a single network name broadcasting both 2.4 GHz and 5 GHz; existing smart bulbs etc. connect on 2.4 GHz (seen in the Spectrum app) | Martin | 2026-11-07 |
 | C-12 | Handset, speaker, microphone and other harness wires (red, black, green, yellow) are soldered directly to the main PCB; only the 9-pin and 4-pin harnesses are plug-in | P-07 | 2026-10-30 |
 
 ---
@@ -163,6 +165,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-07 | Code and docs live in private GitHub repo `martinmccafferty/project-switchboard`; secrets (Wi-Fi passwords, API keys) are never committed | Created early so history starts at Phase 0 | 2026-10-30 | Active |
 | D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing cannot show off-hook on this electronic phone (T-001) | 2026-10-30 | Active |
 | D-09 | Firmware toolchain for Phase 2 bring-up: Arduino IDE 2 on Martin's Mac with the "esp32 by Espressif Systems" core (Arduino-ESP32). Prefer the board's native **USB** port (driverless on macOS); fall back to **COM** if needed | Simplest graphical setup for a first-time user; Arduino-ESP32 supports I2S audio, Wi-Fi and Matter, so it can carry the project. Revisit (PlatformIO/ESP-IDF via Claude Code) if the codebase outgrows it | 2026-11-07 | Active |
+| D-10 | Secrets (Wi-Fi credentials, later API keys) go in a per-sketch `secrets.h`, ignored by git; a `secrets.h.example` template is committed instead | Keeps credentials off GitHub (D-07) | 2026-11-07 | Active |
 
 ---
 
@@ -287,3 +290,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.9 | Phase 2 started; D-09 toolchain decision (Arduino IDE 2 on Mac) |
 | 2026-11-07 | v1.10 | Toolchain installed (IDE 2.3.10, core 3.3.12); first sketch `00-blink` added; T-002 planned |
 | 2026-11-07 | v1.11 | T-002 passed: first successful upload, LED blinking; C-25–C-27 added (chip details, LED on GPIO 48, manual upload procedure) |
+| 2026-11-07 | v1.12 | Sketch `01-wifi` added; T-003 planned; C-28 (home Wi-Fi is dual-band single name); D-10 (secrets handling) |
