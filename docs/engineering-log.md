@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.9)
+**Last updated:** 2026-11-07 (Log v1.10)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 = install Arduino IDE 2 and ESP32 board support on the Mac.
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 = upload `00-blink` to light the onboard RGB LED (T-002).
 
 ---
 
@@ -214,6 +214,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ID | Date | Test | Setup | Expected | Observed | Conclusion |
 |---|---|---|---|---|---|---|
 | T-001 | 2026-10-30 | Line-jack hook test (unpowered): AstroAI AM33D on diode-test setting, probes via male-male Dupont pins pushed into the phone line cord's plug | Phone unplugged from wall; contact technique verified by a beep end-to-end through the line cord's middle contacts | On-hook "1"; handset lifted: a number | A (on-hook) "1"; B (handset lifted) "1", with contact confirmed | **Valid result, not a fault:** at the meter's diode-test voltage the phone shows an open circuit both on- and off-hook. Consistent with an electronic hook circuit (transistors + speech chip) that only conducts under real line voltage. Off-hook detection to be verified in Phase 4 |
+| T-002 | 2026-11-07 | First upload: `00-blink` cycles onboard RGB LED red/green/blue/off | Board on Mac via native USB port; Tools → Board: ESP32S3 Dev Module | LED cycles colors every 0.5 s | *pending* | *pending* |
 
 ---
 
@@ -251,7 +252,8 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - None yet.
 - Repo layout: `firmware/` (ESP32-S3), `relay/` (AI relay service), `docs/` (this log, photos, pinouts).
 - Toolchain: Arduino IDE 2 + Arduino-ESP32 core (D-09). Board-support URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-- Development machine: Martin's Mac.
+- Development machine: Martin's Mac. Installed 2026-11-07: Arduino IDE 2.3.10; "esp32 by Espressif Systems" core 3.3.12.
+- Sketches live in `firmware/<nn-name>/<nn-name>.ino` (Arduino requires the folder and file names to match). First sketch: `firmware/00-blink`.
 
 ---
 
@@ -279,3 +281,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.7 | T-001 recorded as inconclusive; D-08 proposed (close Phase 1, move to Phase 2) |
 | 2026-10-30 | v1.8 | T-001 updated: contact confirmed, phone open-circuit both on- and off-hook at meter voltage; D-08 accepted, Phase 1 closed |
 | 2026-11-07 | v1.9 | Phase 2 started; D-09 toolchain decision (Arduino IDE 2 on Mac) |
+| 2026-11-07 | v1.10 | Toolchain installed (IDE 2.3.10, core 3.3.12); first sketch `00-blink` added; T-002 planned |
