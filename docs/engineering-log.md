@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.13)
+**Last updated:** 2026-11-07 (Log v1.14)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Next: step 4 = decide where the AI relay runs (Q-04), then a first round-trip message from the board to it.
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay running on the Mac.
 
 ---
 
@@ -166,6 +166,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing cannot show off-hook on this electronic phone (T-001) | 2026-10-30 | Active |
 | D-09 | Firmware toolchain for Phase 2 bring-up: Arduino IDE 2 on Martin's Mac with the "esp32 by Espressif Systems" core (Arduino-ESP32). Prefer the board's native **USB** port (driverless on macOS); fall back to **COM** if needed | Simplest graphical setup for a first-time user; Arduino-ESP32 supports I2S audio, Wi-Fi and Matter, so it can carry the project. Revisit (PlatformIO/ESP-IDF via Claude Code) if the codebase outgrows it | 2026-11-07 | Active |
 | D-10 | Secrets (Wi-Fi credentials, later API keys) go in a per-sketch `secrets.h`, ignored by git; a `secrets.h.example` template is committed instead | Keeps credentials off GitHub (D-07) | 2026-11-07 | Active |
+| D-11 | AI relay hosting: develop and test on Martin's Mac; production on **Railway** as an always-on service | Martin doesn't want to depend on the Mac long term. Home devices considered and ruled out as hosts (Google Nest Mini, SwitchBot, WiiM: closed firmware, can't run custom code; they may still be *controlled* by the relay later). Railway runs persistent processes that can hold the phone's always-open connection (needed for incoming rings) and is already proven in Martin's stack (Continuum engine). Vercel now supports WebSockets but connections end at the function's max duration and are billed while open, a poor fit for a 24/7 connection | 2026-11-07 | Active |
 
 ---
 
@@ -176,7 +177,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ~~Q-01~~ | ~~What is behind the covered panel?~~ Answered: empty compartment (C-22) | — |
 | ~~Q-02~~ | ~~IC part numbers~~ Answered: U2 ≈ UTC1062, U3 unmarked, U4 = HT9200A, U6 = MB6F | — |
 | Q-03 | Does the phone have a tone/pulse setting anywhere? (Only VOLUME switch seen so far) | Phase 0–1 |
-| Q-04 | Where will the AI relay run (home computer, Raspberry Pi, cloud service)? | Phase 2 |
+| ~~Q-04~~ | ~~Where will the AI relay run?~~ Answered: Mac for development, Railway for production (D-11) | — |
 | Q-05 | Which AI voice stack: realtime speech-to-speech API vs. speech-to-text → LLM (e.g. Claude) → text-to-speech? | Phase 2–5 |
 | Q-06 | Google Home integration: ESP32 as a Matter device (good for "ring the phone" notifications); control in the other direction still unresolved | Phase 7 |
 | Q-07 | Solder-free permanent assembly method (pre-made carrier board, screw terminals, etc.) | Phase 8 |
@@ -250,7 +251,7 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - Right header (top→bottom): GND, TX, RX, 1, 2, 42, 41, 40, 39, 38, 37, 36, 35, 0, 45, 48, 47, 21, 20, 19, GND, GND.
 - Avoid: GPIO 35, 36, 37 (used by octal PSRAM); GPIO 0, 3, 45, 46 (boot-strapping pins); GPIO 19/20 (native USB).
 - Onboard RGB LED on GPIO 48 (confirmed, C-26).
-- **Upload procedure (C-27):** hold BOOT, tap RST, release BOOT → Tools → Port → pick the `usbmodem…` entry → Upload → press RST.
+- **Upload procedure:** with USB CDC On Boot enabled, normal **Upload** works without buttons (T-003). Fallback if it fails (C-27): hold BOOT, tap RST, release BOOT → Tools → Port → pick the `usbmodem…` entry → Upload → press RST.
 - No wiring done yet.
 
 ---
@@ -292,3 +293,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.11 | T-002 passed: first successful upload, LED blinking; C-25–C-27 added (chip details, LED on GPIO 48, manual upload procedure) |
 | 2026-11-07 | v1.12 | Sketch `01-wifi` added; T-003 planned; C-28 (home Wi-Fi is dual-band single name); D-10 (secrets handling) |
 | 2026-11-07 | v1.13 | T-003 passed: board on home Wi-Fi, −35 dBm |
+| 2026-11-07 | v1.14 | D-11 relay hosting (Mac now, Railway later); Q-04 answered; upload now works without BOOT/RST buttons |
