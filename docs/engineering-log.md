@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.24)
+**Last updated:** 2026-11-07 (Log v1.25)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). **Phase 3:** architecture committed (D-01); shopping list at `docs/phase3-shopping-list.md` (DigiKey: 2 × AG1171 + small parts, ~$25); codec deferred (D-14). AG1171 backordered at DigiKey and Newark (deliveries from Jan 2027); Symmetry Electronics has stock, so order AG1171S there and the rest from DigiKey. Waiting on Martin's order. Meanwhile: Phase 2 audio-streaming throughput test (test B).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). **Phase 3:** architecture committed (D-01); shopping list at `docs/phase3-shopping-list.md` (DigiKey: 2 × AG1171 + small parts, ~$25); codec deferred (D-14). AG1171 backordered at DigiKey and Newark (deliveries from Jan 2027); **Ordered 2026-11-07:** 2 × AG1171S from Symmetry (order #299683) and support parts from DigiKey (section 4.5). Awaiting delivery. Meanwhile: Phase 2 audio-streaming throughput test (test B). Meanwhile: Phase 2 audio-streaming throughput test (test B).
 
 ---
 
@@ -98,7 +98,16 @@ Purchase decision happens at the Phase 3 gate (D-03).
 |### 4.4 Smart-home inventory and control routes (Martin, 2026-11-07; routes are research findings, unverified on his devices)
 
 | Devices | Count / names (as in Google Home) | Best route from the relay | Confidence |
-|---|---|---|---|
+|### 4.5 Purchases and costs
+
+| Date | Supplier | Order | Items | Total (USD) |
+|---|---|---|---|---|
+| Before 2026-10-30 | Various | — | ESP32-S3 boards (2), breadboard, power module, starter kit, jumpers, multimeter, RJ11 adapters | Not recorded |
+| 2026-11-07 | DigiKey | — | 2 × 470 µF, 5 × 0.1 µF, 5 × 0.01 µF, 4 × 1N4004, 2 × 1N4148, 2 × P6KE82A (subtotal $12.79; shipping $8.49; tariff $1.06 est.; tax $1.68) | **$24.02** (estimate) |
+| 2026-11-07 | Symmetry Electronics (via americas.braemac.com) | #299683 | 2 × Silvertel AG1171S @ $8.50 (items $17.00; shipping $11.71; tax $2.16; tariff to be added before shipping) | **$30.87** + tariff |
+| | | | **Phase 3 total so far** | **≈ $54.89** |
+
+---|---|---|---|
 | GE/Savant **Cync** Full Color bulbs (Matter-enabled; HW 1.0, SW 1.03.190) | 15: Dining Table Light 1–5 (BR30), Living Room (Left-side TV Lamp, Right-side TV Lamp, Pendant Lamp), Reading Room (Standing Lamp, Table Lamp), Office (Main Lamp), Master Bedroom (Bedside Lamp 1–2), Guest Bedroom (Lamp 1–2) | **No official public Cync API.** Options: (a) share the bulbs via Matter into **SmartThings** (Samsung TVs from 2022 onward, incl. The Frame, can act as a SmartThings/Matter hub) and control through the SmartThings cloud API, no purchase; (b) **Home Assistant** at home as a Matter controller or via its Cync cloud integration, reached securely from Railway, needs a small device; (c) Cync's private cloud API directly, fragile | Open (key Phase 7 question) |
 | **SwitchBot** Blind Tilt | 4: Blind Tilt 1–3 (living room), 4 (dining room) | SwitchBot official cloud API from Railway (requires a SwitchBot Hub, likely present since they appear in Google Home) | High |
 | **SwitchBot** Curtain | 1: "Curtain 47" (dining room) | Same as above | High |
@@ -189,6 +198,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-12 | Wi-Fi set-up without reprogramming: when the phone can't join a saved network, it starts its own temporary Wi-Fi hotspot (e.g. "Switchboard-Setup"); Martin joins it from his mobile, a set-up page opens, he picks the network and enters the password; the phone saves it (remembering several networks, e.g. home plus others). Likely via the WiFiManager library. `secrets.h` stays only for bench development until this is built | Portability goal. Known limits: Wi-Fi with a browser sign-in page (hotels, cafés) and corporate (WPA2-Enterprise) networks won't work; a mobile hotspot is the fallback | 2026-11-07 | Active — build after core phone functions work |
 | D-13 | Smart-home principle: the relay talks to each device maker's own service directly (SwitchBot, SmartThings, Cync, etc.), **bypassing Google Home** as the control path. Google Home and its voice control keep working in parallel, untouched | Martin's stated preference; also Google Home has no general server-side control API | 2026-11-07 | Active |
 | D-14 | **Defer the audio codec board.** First try the ESP32-S3's built-in converters: ADC1 samples the AG1171's VOUT (biased to mid-supply), and PDM or sigma-delta output through an RC filter drives VIN, at telephone bandwidth (300–3400 Hz, 8–16 kHz sampling). Buy a codec only if quality proves inadequate | Minimize purchases. Telephone audio is narrowband, so built-in converters may suffice. Solder-free codec boards with line-level I/O proved scarce: SparkFun WM8960 with headers is retired, the weeBell POTS shield is sold out, and most modules ship with loose headers | 2026-11-07 | Active (revisit after first audio tests) |
+| D-15 | Produce a public **build guide** at the end of the project so others can build the same phone. Gotchas and practical lessons are collected as we go in `docs/build-guide-notes.md` | Martin's stated intention | 2026-11-07 | Active |
 
 ---
 
@@ -218,12 +228,13 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
 | 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 showed open circuit at meter voltage |
 | 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | **In progress** (D-09) |
-| 3 | **Decision gate**: commit architecture; order line module (codec deferred, D-14) | Yes | **In progress**: list ready, awaiting order |
+| 3 | **Decision gate**: commit architecture; order line module (codec deferred, D-14) | Yes | **Ordered** 2026-11-07; awaiting delivery |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
 | 5 | AI conversation through the handset | — | Not started |
 | 6 | Hands-free with echo cancellation | — | Not started |
 | 7 | Smart-home integration | — | Not started |
 | 8 | Permanent compact install inside the phone + reliability soak test | TBD | Not started |
+| 9 | Public build guide (D-15), from this log and `docs/build-guide-notes.md` | None | Not started |
 
 ### Phase 0 checklist (phone unplugged from any wall jack, no power)
 - [x] Engineering log created
@@ -328,3 +339,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.22 | T-005 passed: board ↔ relay round trip working; Phase 2 core complete |
 | 2026-11-07 | v1.23 | Phase 3: architecture committed; shopping list created; D-14 defer codec; Q-12 logic levels |
 | 2026-11-07 | v1.24 | AG1171 sourcing: DigiKey/Newark backordered; Symmetry Electronics in stock |
+| 2026-11-07 | v1.25 | Parts ordered (section 4.5 costs); D-15 public build guide; `docs/build-guide-notes.md` started; Phase 9 added |
