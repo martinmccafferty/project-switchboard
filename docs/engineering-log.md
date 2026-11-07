@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-10-30 (Log v1.8)
+**Last updated:** 2026-11-07 (Log v1.9)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Next action: Phase 1 — unpowered multimeter checks (not started; awaiting Martin's go-ahead).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 = install Arduino IDE 2 and ESP32 board support on the Mac.
 
 ---
 
@@ -159,6 +159,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-06 | Use the module's built-in PCB antenna; do not fit the external antenna | C-23: module has PCB antenna (external connector is optional); revisit only if Wi-Fi is weak inside the phone | 2026-10-30 | Active (updated) |
 | D-07 | Code and docs live in private GitHub repo `martinmccafferty/project-switchboard`; secrets (Wi-Fi passwords, API keys) are never committed | Created early so history starts at Phase 0 | 2026-10-30 | Active |
 | D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing cannot show off-hook on this electronic phone (T-001) | 2026-10-30 | Active |
+| D-09 | Firmware toolchain for Phase 2 bring-up: Arduino IDE 2 on Martin's Mac with the "esp32 by Espressif Systems" core (Arduino-ESP32). Prefer the board's native **USB** port (driverless on macOS); fall back to **COM** if needed | Simplest graphical setup for a first-time user; Arduino-ESP32 supports I2S audio, Wi-Fi and Matter, so it can carry the project. Revisit (PlatformIO/ESP-IDF via Claude Code) if the codebase outgrows it | 2026-11-07 | Active |
 
 ---
 
@@ -185,7 +186,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 |---|---|---|---|
 | 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
 | 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 showed open circuit at meter voltage |
-| 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | Not started |
+| 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | **In progress** (D-09) |
 | 3 | **Decision gate**: commit architecture; order line module + codec (+ PSU if needed) | Yes | Not started |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
 | 5 | AI conversation through the handset | — | Not started |
@@ -249,7 +250,8 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 ## 12. Firmware and software
 - None yet.
 - Repo layout: `firmware/` (ESP32-S3), `relay/` (AI relay service), `docs/` (this log, photos, pinouts).
-- Candidate firmware toolchains (decide in Phase 2): ESP-IDF, Arduino-ESP32, or ESPHome.
+- Toolchain: Arduino IDE 2 + Arduino-ESP32 core (D-09). Board-support URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+- Development machine: Martin's Mac.
 
 ---
 
@@ -276,3 +278,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-10-30 | v1.6 | Phase 1 started: T-001 planned; multimeter model recorded |
 | 2026-10-30 | v1.7 | T-001 recorded as inconclusive; D-08 proposed (close Phase 1, move to Phase 2) |
 | 2026-10-30 | v1.8 | T-001 updated: contact confirmed, phone open-circuit both on- and off-hook at meter voltage; D-08 accepted, Phase 1 closed |
+| 2026-11-07 | v1.9 | Phase 2 started; D-09 toolchain decision (Arduino IDE 2 on Mac) |
