@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.14)
+**Last updated:** 2026-11-07 (Log v1.15)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -166,7 +166,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-08 | Close Phase 1 without further unpowered line tests; move to Phase 2 (ESP32 bring-up) | Phase 1's goal (confirm a standard tone-dialing analog phone) is met by Phase 0 evidence (C-13, C-16, C-17); unpowered hook testing cannot show off-hook on this electronic phone (T-001) | 2026-10-30 | Active |
 | D-09 | Firmware toolchain for Phase 2 bring-up: Arduino IDE 2 on Martin's Mac with the "esp32 by Espressif Systems" core (Arduino-ESP32). Prefer the board's native **USB** port (driverless on macOS); fall back to **COM** if needed | Simplest graphical setup for a first-time user; Arduino-ESP32 supports I2S audio, Wi-Fi and Matter, so it can carry the project. Revisit (PlatformIO/ESP-IDF via Claude Code) if the codebase outgrows it | 2026-11-07 | Active |
 | D-10 | Secrets (Wi-Fi credentials, later API keys) go in a per-sketch `secrets.h`, ignored by git; a `secrets.h.example` template is committed instead | Keeps credentials off GitHub (D-07) | 2026-11-07 | Active |
-| D-11 | AI relay hosting: develop and test on Martin's Mac; production on **Railway** as an always-on service | Martin doesn't want to depend on the Mac long term. Home devices considered and ruled out as hosts (Google Nest Mini, SwitchBot, WiiM: closed firmware, can't run custom code; they may still be *controlled* by the relay later). Railway runs persistent processes that can hold the phone's always-open connection (needed for incoming rings) and is already proven in Martin's stack (Continuum engine). Vercel now supports WebSockets but connections end at the function's max duration and are billed while open, a poor fit for a 24/7 connection | 2026-11-07 | Active |
+| D-11 | AI relay hosting: develop and test on Martin's Mac now. Production host deferred to Phase 7, choosing between **Railway** (default: no purchase, ~$5/month plan, already proven in Martin's stack) and a **small home server** (e.g. Raspberry Pi; Martin is open to it if setup is light). Relay code must stay portable to both | Martin doesn't want to depend on the Mac long term. Google Nest Mini, SwitchBot and WiiM ruled out as hosts (closed firmware) but may be *controlled* by the relay. Both candidates can hold the phone's always-open connection; a home server's main extra benefit would be local smart-home control, which Phase 7 will clarify. Vercel ruled out: WebSockets end at function max duration and bill while open | 2026-11-07 | Active (revised same day) |
 
 ---
 
@@ -177,7 +177,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ~~Q-01~~ | ~~What is behind the covered panel?~~ Answered: empty compartment (C-22) | — |
 | ~~Q-02~~ | ~~IC part numbers~~ Answered: U2 ≈ UTC1062, U3 unmarked, U4 = HT9200A, U6 = MB6F | — |
 | Q-03 | Does the phone have a tone/pulse setting anywhere? (Only VOLUME switch seen so far) | Phase 0–1 |
-| ~~Q-04~~ | ~~Where will the AI relay run?~~ Answered: Mac for development, Railway for production (D-11) | — |
+| Q-04 | Production relay host: Railway or a small home server? Mac for development is settled (D-11) | Phase 7 |
 | Q-05 | Which AI voice stack: realtime speech-to-speech API vs. speech-to-text → LLM (e.g. Claude) → text-to-speech? | Phase 2–5 |
 | Q-06 | Google Home integration: ESP32 as a Matter device (good for "ring the phone" notifications); control in the other direction still unresolved | Phase 7 |
 | Q-07 | Solder-free permanent assembly method (pre-made carrier board, screw terminals, etc.) | Phase 8 |
@@ -294,3 +294,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.12 | Sketch `01-wifi` added; T-003 planned; C-28 (home Wi-Fi is dual-band single name); D-10 (secrets handling) |
 | 2026-11-07 | v1.13 | T-003 passed: board on home Wi-Fi, −35 dBm |
 | 2026-11-07 | v1.14 | D-11 relay hosting (Mac now, Railway later); Q-04 answered; upload now works without BOOT/RST buttons |
+| 2026-11-07 | v1.15 | D-11 revised: production host deferred (Railway vs home server); Q-04 reopened for Phase 7 |
