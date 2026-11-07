@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.23)
+**Last updated:** 2026-11-07 (Log v1.24)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -15,7 +15,7 @@
 - Telephone opened, photographed, and reassembled. No electrical measurements yet.
 - Architecture direction "Build the phone line, not a new phone" accepted in principle (D-01). Final commitment happens at the Phase 3 decision gate.
 - GitHub repository `martinmccafferty/project-switchboard` created (private) and seeded (D-07).
-- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). **Phase 3:** architecture committed (D-01); shopping list at `docs/phase3-shopping-list.md` (DigiKey: 2 × AG1171 + small parts, ~$25); codec deferred (D-14). Waiting on Martin's order. Meanwhile: Phase 2 audio-streaming throughput test (test B).
+- **Phase 0 complete** (photo survey done; nothing found that challenges D-01). Phase 1 closed (D-08). **Phase 2 in progress:** step 1 (install IDE + ESP32 core) done; step 2 (first upload, `00-blink`) **passed** (T-002). Step 3 (Wi-Fi, `01-wifi`) **passed** (T-003). Relay hosting decided (D-11). Next: step 4 = first round-trip message between the board and a relay on the Mac (T-004 and T-005 **passed**: board and relay talk over a persistent connection). Remaining Phase 2 item: audio-streaming throughput test (can run while Phase 3 parts ship). **Phase 3:** architecture committed (D-01); shopping list at `docs/phase3-shopping-list.md` (DigiKey: 2 × AG1171 + small parts, ~$25); codec deferred (D-14). AG1171 backordered at DigiKey and Newark (deliveries from Jan 2027); Symmetry Electronics has stock, so order AG1171S there and the rest from DigiKey. Waiting on Martin's order. Meanwhile: Phase 2 audio-streaming throughput test (test B).
 
 ---
 
@@ -327,3 +327,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.21 | T-004 passed (relay running on Mac at 192.168.1.87:8080); sketch `02-relay-hello` added; T-005 planned |
 | 2026-11-07 | v1.22 | T-005 passed: board ↔ relay round trip working; Phase 2 core complete |
 | 2026-11-07 | v1.23 | Phase 3: architecture committed; shopping list created; D-14 defer codec; Q-12 logic levels |
+| 2026-11-07 | v1.24 | AG1171 sourcing: DigiKey/Newark backordered; Symmetry Electronics in stock |

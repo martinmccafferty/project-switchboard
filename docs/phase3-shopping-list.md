@@ -1,6 +1,8 @@
 # Phase 3 shopping list (2026-11-07)
 
-One order from **DigiKey** (digikey.com) covers everything. Expected total: about **$25 plus shipping**.
+**Sourcing update (2026-11-07):** DigiKey shows the AG1171 at 0 stock (backorder) and Newark quotes deliveries from 7 Jan 2027 (18-week lead time). **Symmetry Electronics** (symmetryelectronics.com, a Silvertel distributor) lists 2,282 AG1171S in stock at $8.50 each. Plan: buy the 2 × AG1171S from Symmetry, and everything else (items 2–7) from DigiKey. Avoid marketplace brokers (counterfeit risk).
+
+Originally planned as one DigiKey order. Expected total: about **$25 plus shipping**.
 
 | # | Qty | Part | Search DigiKey for | Why | Approx. |
 |---|---|---|---|---|---|
