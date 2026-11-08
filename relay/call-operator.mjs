@@ -3,15 +3,34 @@
 // One instance per call; the exchange (switchboard.mjs) feeds it the caller's audio frames.
 import { createOperator } from './operator.mjs';
 import { operatorSpeaker, SAMPLE_RATE } from './voices.mjs';
-import { StreamResampler, waitingCue } from './audio.mjs';
+import { StreamResampler, waitingCue, plugClick } from './audio.mjs';
 import { createListener } from './listen.mjs';
 
 const RATE = 16000;
 const END_SILENCE_MS = Number(process.env.END_SILENCE_MS) || 800; // quiet that ends the caller's turn
 const TICK = waitingCue('clock-tick', 10000, RATE);               // D-20, looped while waiting
 const FIRST_CLAUSE = process.env.FIRST_CLAUSE !== 'off';          // start speaking at the first clause
-const TICK_FALLBACK_MS = 4000; // the tick plays during lookups; otherwise only if a plain reply is this slow
-const PHONE_BUFFER_MS = 400;                                      // lets the phone finish playing before listening again
+const TICK_FALLBACK_MS = 4000;
+// If Claude is still thinking this long after the transcript (limericks took 6-8 s, T-019), Doris says a short
+// stored hold line and the tick follows (D-32). Plain replies start within ~1.5 s, so they never hear it.
+const HOLD_MS = Number(process.env.HOLD_MS) || 2500;
+// Cap on how long the semantic detector may hold after the caller goes quiet (it held ~2.6 s after statements).
+const MAX_SILENCE_MS = Number(process.env.MAX_SILENCE_MS) || 1500; // the tick plays during lookups; otherwise only if a plain reply is this slow
+const PHONE_BUFFER_MS = 400;
+// Titles and abbreviations whose period doesn't end a sentence ("Mrs. Pruitt" was voiced as two pieces with a
+// pause between them, T-021). A single capital letter counts too ("J. Edgar").
+const NOT_AN_END = /(?:^|\s)(?:Mr|Mrs|Ms|Dr|St|Mt|Jr|Sr|Prof|Rev|Capt|Lt|Col|Gen|Sgt|Gov|Sen|Rep|No|vs|[A-Z])\.$/;
+// The first whole sentence at the start of text: { sentence, rest }, or null if none is complete yet.
+function takeSentence(text) {
+  const end = /[.!?]["')]?\s+/g; let m;
+  while ((m = end.exec(text))) {
+    const upTo = text.slice(0, m.index + m[0].trimEnd().length);
+    if (/\.["')]?$/.test(upTo) && NOT_AN_END.test(upTo.replace(/["')]$/, ''))) continue;
+    return { sentence: upTo.trim(), rest: text.slice(m.index + m[0].length) };
+  }
+  return null;
+}
+export { takeSentence };                                      // lets the phone finish playing before listening again
 
 // Energy-based turn detection on 20 ms frames, with a slowly adapting noise floor.
 // Tells the listener when speech starts (with 300 ms before it), passes each frame, and returns the turn at the end.
@@ -45,15 +64,24 @@ class TurnDetector {
   }
 }
 
-export function operatorCall({ out, clips, status }) {
+// opening: { text, context } for a call Doris starts herself (delivering a reminder): she says `text` in her
+// live voice instead of the greeting clip, and `context` tells Claude what's going on.
+import { takeMissed } from './reminders.mjs';
+export function operatorCall({ out, clips, status, opening = null }) {
   let active = true; let listening = false;
   // When the caller was last audibly speaking (measured here, for timing what the caller actually waits).
   let lastVoicedAt = 0; let floorDb = -60;
   // Live transcription opens while the greeting plays. In semantic mode it also decides when the caller is done.
   const listener = createListener({ onTurn: (text) => { if (active && listening) handleTurn(async () => ({ text, live: true })); } });
   const detector = new TurnDetector(listener);
-  const operator = createOperator({ onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
+  // On an ordinary call, reminders that rang unanswered are mentioned (once) early in the call.
+  const missed = opening ? [] : takeMissed();
+  const context = opening?.context ?? (missed.length
+    ? `These reminders rang while nobody answered. Mention them briefly early in this call: ${missed.map((m) => `"${m.message}" (due ${m.was_due})`).join('; ')}.`
+    : '');
+  const operator = createOperator({ context, onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
   const handlers = { text: () => {}, announce: () => {} };
+  let holdIndex = Math.floor(Math.random() * 3); // rotate the hold lines so the same one doesn't come twice running
 
   // Doris's voice opens while the greeting plays. If it fails, Ethel takes over the call (D-24).
   let voiceName = 'doris';
@@ -78,7 +106,16 @@ export function operatorCall({ out, clips, status }) {
   }
 
   (async () => {
-    await out.play(clips.doris.greeting);
+    if (opening) {
+      // Doris rang the caller: a plug click, then she speaks first in her live voice.
+      await out.play(plugClick(RATE));
+      const resampler = new StreamResampler(SAMPLE_RATE, RATE);
+      let last = Promise.resolve();
+      try { await speak(opening.text, (chunk) => { if (active) last = out.play(resampler.push(chunk)); }); await last; }
+      catch (err) { console.log(`Couldn't speak the opening: ${err.message}`); }
+    } else {
+      await out.play(clips.doris.greeting);
+    }
     if (active) { listening = true; status('Doris is listening'); }
   })();
 
@@ -91,7 +128,8 @@ export function operatorCall({ out, clips, status }) {
     timing.sinceLastWord = lastVoicedAt ? t0 - lastVoicedAt : null;
     timing.detectorHold = lastVoicedAt && listener.speechStoppedAt ? listener.speechStoppedAt - lastVoicedAt : null;
     const tickTimer = setTimeout(() => active && out.setFiller(TICK), TICK_FALLBACK_MS);
-    let lastSaid = null; // 'announcement' | 'speech'
+    let lastSaid = null; // 'announcement' | 'hold' | 'speech'
+    let holdTimer = null;
     let chain = Promise.resolve(); let lastPlay = Promise.resolve();
 
     // Everything Doris says goes through one ordered chain: render the voice, then queue it on the line.
@@ -119,10 +157,17 @@ export function operatorCall({ out, clips, status }) {
       if (!active) return;
       if (!heard.trim()) throw new Error('nothing heard');
       status(`Caller: "${heard}"`);
+      holdTimer = setTimeout(() => {
+        if (!active || timing.firstText !== undefined || lastSaid) return;
+        const holds = Object.keys(clips[voiceName]).filter((k) => k.startsWith('hold-'));
+        if (!holds.length) return;
+        lastSaid = 'hold'; timing.hold = ms();
+        sayClip(clips[voiceName][holds[holdIndex++ % holds.length]], { thenTick: true });
+      }, HOLD_MS);
 
       let pending = '';
       handlers.text = (delta) => {
-        timing.firstText ??= ms();
+        timing.firstText ??= ms(); clearTimeout(holdTimer);
         pending += delta;
         let m;
         // The first piece of a reply may end at a comma, semicolon or colon (2+ words) so Doris starts sooner;
@@ -130,14 +175,16 @@ export function operatorCall({ out, clips, status }) {
         if (timing.firstChunk === undefined && FIRST_CLAUSE && (m = pending.match(/^((?:[^\s.!?]+\s+)+?[^\s.!?]+?[,;:])\s+/s))) {
           timing.firstChunk = ms(); saySentence(m[1].trim()); pending = pending.slice(m[0].length);
         }
-        while ((m = pending.match(/^(.+?[.!?]["')]?)\s+/s))) {
+        let next;
+        while ((next = takeSentence(pending))) {
           timing.firstChunk ??= ms();
-          saySentence(m[1].trim()); pending = pending.slice(m[0].length);
+          saySentence(next.sentence); pending = next.rest;
         }
       };
       handlers.announce = (phrase, tool) => {
-        // Two lookups in a row get one announcement, not two "One moment..."s.
-        if (lastSaid === 'announcement') return;
+        // Two lookups in a row get one announcement, not two "One moment..."s (nor one after a hold line).
+        clearTimeout(holdTimer);
+        if (lastSaid === 'announcement' || lastSaid === 'hold') return;
         lastSaid = 'announcement';
         const clip = clips[voiceName][`announce-${tool}`];
         if (clip) sayClip(clip, { thenTick: true });
@@ -150,7 +197,7 @@ export function operatorCall({ out, clips, status }) {
       await chain; await lastPlay;
       timing.done = ms();
       const heardAfter = timing.sinceLastWord; // caller's last word -> transcript ready
-      console.log(`Turn: last word -> transcript ${heardAfter} ms (detector hold ${timing.detectorHold}) | Claude first words +${timing.firstText} | first sound +${timing.firstSound} | caller waited ~${heardAfter + timing.firstSound} ms`);
+      console.log(`Turn: last word -> transcript ${heardAfter} ms (detector hold ${timing.detectorHold}) | Claude first words +${timing.firstText} | first sound +${timing.firstSound}${timing.hold ? ` (hold line at +${timing.hold})` : ''} | caller waited ~${heardAfter + timing.firstSound} ms`);
       console.log(`TIMING ${JSON.stringify(timing)}`);
     } catch (err) {
       if (!active) return;
@@ -162,7 +209,7 @@ export function operatorCall({ out, clips, status }) {
         await out.play(clips.doris['line-trouble']);
       }
     } finally {
-      clearTimeout(tickTimer); out.setFiller(null);
+      clearTimeout(tickTimer); clearTimeout(holdTimer); out.setFiller(null);
       handlers.text = () => {}; handlers.announce = () => {};
     }
     await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
@@ -178,7 +225,13 @@ export function operatorCall({ out, clips, status }) {
       const db = 10 * Math.log10(sum / (frame.length / 2) + 1e-10);
       if (db > Math.max(floorDb + 12, -50)) lastVoicedAt = Date.now();
       else floorDb = db < floorDb ? db : floorDb + 0.02 * (db - floorDb);
-      if (listener.isSemanticLive()) { listener.stream(frame); return; }
+      if (listener.isSemanticLive()) {
+        listener.stream(frame);
+        if (lastVoicedAt && Date.now() - lastVoicedAt > MAX_SILENCE_MS && listener.forceEnd()) {
+          console.log(`Turn ended by the ${MAX_SILENCE_MS} ms silence cap`);
+        }
+        return;
+      }
       // Fallback (or TURN_DETECTION=local): the exchange's own detector finds the end of the turn.
       const utterance = detector.push(frame);
       if (utterance) handleTurn(() => listener.finish(utterance));

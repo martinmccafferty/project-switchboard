@@ -15,6 +15,19 @@
   #status { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; text-align: center;
     font-size: 18px; min-height: 52px; }
   body.offhook #status { border-color: var(--live); }
+  body.ringing #status { background: #8a3b2e; color: var(--ivory); animation: ring 0.6s ease-in-out infinite alternate; }
+  @keyframes ring { from { transform: rotate(-1.5deg); } to { transform: rotate(1.5deg); } }
+  .top { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+  .top h1 { margin: 0; }
+  .bell { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6c604e; cursor: pointer; user-select: none; }
+  .bell input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .track { width: 30px; height: 16px; border-radius: 8px; background: var(--line); position: relative; transition: background .15s; }
+  .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--ivory); transition: transform .15s; }
+  .bell input:checked + .track { background: var(--brass); }
+  .bell input:checked + .track::after { transform: translateX(14px); }
+  .bell input:focus-visible + .track { outline: 2px solid var(--ink); outline-offset: 2px; }
+  #unlock { font-size: 12px; color: #8a3b2e; text-align: center; margin-top: 6px; }
   #hook { display: block; width: 100%; margin: 14px 0; padding: 14px; border: 0; border-radius: 12px; cursor: pointer;
     background: var(--ink); color: var(--ivory); font: inherit; font-size: 18px; }
   body.offhook #hook { background: #8a3b2e; }
@@ -30,8 +43,13 @@
 </head>
 <body>
 <div class="phone">
-  <h1>Switchboard</h1>
+  <div class="top">
+    <h1>Switchboard</h1>
+    <label class="bell" title="Ring the bell for incoming calls">Bell
+      <input type="checkbox" id="bell" checked><span class="track"></span></label>
+  </div>
   <div id="status">Connecting…</div>
+  <div id="unlock" hidden>Click anywhere once so the bell can sound (a browser rule)</div>
   <button id="hook">Lift handset</button>
   <div class="keys">
     <button class="key" data-key="1">1</button><button class="key" data-key="2">2</button><button class="key" data-key="3">3</button>

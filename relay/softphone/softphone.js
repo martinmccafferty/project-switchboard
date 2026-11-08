@@ -1,7 +1,7 @@
 // Browser softphone (M3): behaves like the real phone on the relay's /phone line.
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status'); const hookBtn = $('hook'); const logEl = $('log');
-let ws = null; let audio = null; let offHook = false;
+let ws = null; let audio = null; let offHook = false; let ringing = false; let bellTimer = null;
 const stats = { out: 0, in: 0 };
 
 function log(text) {
@@ -22,6 +22,8 @@ function connect() {
     if (typeof e.data === 'string') {
       const msg = JSON.parse(e.data);
       if (msg.type === 'status') { setStatus(msg.text); log(msg.text); }
+      else if (msg.type === 'ring') startRinging();
+      else if (msg.type === 'stop_ring') stopRinging();
       return;
     }
     stats.in++;
@@ -29,27 +31,79 @@ function connect() {
   };
 }
 
-// Microphone and speaker, started on the first lift (browsers need a click before audio can start).
+// Speaker opens at page load. Browsers keep it silent until the first click or key press on the page
+// (autoplay rule), so the first one anywhere unlocks it; until then a small note says so.
+let outputReady = null;
+function startOutput() {
+  outputReady ??= (async () => {
+    const ctx = new AudioContext();
+    await ctx.audioWorklet.addModule('worklets.js');
+    const player = new AudioWorkletNode(ctx, 'player');
+    player.connect(ctx.destination);
+    player.port.onmessage = (e) => { $('buffer').textContent = `${e.data.bufferedMs} ms buffered, ${e.data.underruns} gaps`; };
+    const showUnlock = () => { $('unlock').hidden = ctx.state === 'running' || !bellOn(); };
+    ctx.onstatechange = showUnlock; showUnlock();
+    return { ctx, player, bell: makeBell(ctx) };
+  })();
+  return outputReady;
+}
+function unlockAudio() { startOutput().then(({ ctx }) => ctx.resume()).catch(() => {}); }
+
+// Bell toggle: on by default; remembered in this browser.
+const bellOn = () => $('bell').checked;
+try { $('bell').checked = localStorage.getItem('bell') !== 'off'; } catch { /* storage blocked: stay on */ }
+$('bell').onchange = () => {
+  try { localStorage.setItem('bell', bellOn() ? 'on' : 'off'); } catch { /* not remembered */ }
+  startOutput().then(({ ctx }) => { $('unlock').hidden = ctx.state === 'running' || !bellOn(); });
+};
+
 async function startAudio() {
-  const ctx = new AudioContext();
-  await ctx.audioWorklet.addModule('worklets.js');
+  const { ctx, player, bell } = await startOutput();
   const mic = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
   });
   const capture = new AudioWorkletNode(ctx, 'capture');
-  const player = new AudioWorkletNode(ctx, 'player');
   ctx.createMediaStreamSource(mic).connect(capture);
-  player.connect(ctx.destination);
   capture.port.onmessage = (e) => {
     if (offHook && ws?.readyState === WebSocket.OPEN) { ws.send(e.data); stats.out++; }
   };
-  player.port.onmessage = (e) => { $('buffer').textContent = `${e.data.bufferedMs} ms buffered, ${e.data.underruns} gaps`; };
   log(`Audio running at ${ctx.sampleRate} Hz`);
-  return { ctx, player };
+  return { ctx, player, bell };
+}
+
+// An electromechanical bell: a clapper striking a brass gong 20 times a second, for one 2-second burst.
+function makeBell(ctx) {
+  const rate = ctx.sampleRate; const buf = ctx.createBuffer(1, rate * 2, rate); const x = buf.getChannelData(0);
+  const partials = [[1180, 1], [2870, 0.5], [4130, 0.25]];
+  for (let k = 0; k < 40; k++) {                        // strikes every 50 ms
+    const start = Math.round(k * 0.05 * rate);
+    for (let n = start; n < x.length; n++) {
+      const t = (n - start) / rate; const env = Math.exp(-t / 0.18) * 0.06;
+      if (env < 0.0005) break;
+      for (const [f, a] of partials) x[n] += a * env * Math.sin(2 * Math.PI * f * t);
+    }
+  }
+  return buf;
+}
+
+// US ring cadence: 2 seconds on, 4 off, until answered or the exchange stops ringing.
+async function startRinging() {
+  ringing = true; document.body.classList.add('ringing'); setStatus('RINGING (lift the handset to answer)'); log('Ringing');
+  clearInterval(bellTimer);
+  const ring = async () => {
+    if (!ringing || !bellOn()) return;
+    const { ctx, bell } = await startOutput();
+    const src = ctx.createBufferSource(); src.buffer = bell; src.connect(ctx.destination); src.start();
+  };
+  ring(); bellTimer = setInterval(ring, 6000);
+}
+function stopRinging() {
+  ringing = false; clearInterval(bellTimer); document.body.classList.remove('ringing');
 }
 
 async function toggleHook() {
   if (!offHook) {
+    stopRinging();
     try { audio ??= await startAudio(); } catch (err) { log(`Microphone problem: ${err.message}`); return; }
     await audio.ctx.resume();
     offHook = true; hookBtn.textContent = 'Hang up'; document.body.classList.add('offhook');
@@ -78,4 +132,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ') { e.preventDefault(); toggleHook(); } else if (DTMF[e.key]) press(e.key);
 });
 setInterval(() => { $('frames').textContent = `frames sent ${stats.out}, received ${stats.in}`; }, 500);
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, unlockAudio);
+startOutput();
 connect();

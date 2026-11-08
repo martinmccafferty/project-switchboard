@@ -17,13 +17,16 @@ const EAGERNESS = process.env.TURN_EAGERNESS || 'high';            // semantic: 
 const LINE_RATE = 16000;
 const LIVE_RATE = 24000;           // the Realtime API takes 24 kHz PCM
 const RESULT_TIMEOUT_MS = 4000;    // local mode: after this, use the file fallback
-const KEYWORDS = ['Doris', 'Ethel', 'operator', 'Morrisville', 'switchboard'];
+// Words the transcriber should expect (T-019: "Greenock" came through as "Greenup"). Add more with TRANSCRIBE_KEYWORDS="a,b".
+const KEYWORDS = ['Doris', 'Ethel', 'Mrs. Pruitt', 'Buttons', 'operator', 'switchboard', 'Morrisville', 'Raleigh', 'Cary',
+  'North Carolina', 'Scotland', 'Greenock', 'Glasgow', 'Edinburgh', 'Martin', 'Andy', 'limerick',
+  ...(process.env.TRANSCRIBE_KEYWORDS || '').split(',').map((k) => k.trim()).filter(Boolean)];
 const openai = new OpenAI();
 
 async function transcribeFile(pcm) {
   const { text } = await openai.audio.transcriptions.create({
     file: await toFile(wavBuffer(pcm, LINE_RATE), 'caller.wav'),
-    model: FILE_MODEL, prompt: 'A caller speaking to Doris, a telephone switchboard operator.',
+    model: FILE_MODEL, prompt: `A caller speaking to Doris, a telephone switchboard operator. Names that may come up: ${KEYWORDS.join(', ')}.`,
   });
   return text;
 }
@@ -35,7 +38,7 @@ export function createListener({ onTurn = () => {} } = {}) {
   const results = new Map(); // item_id -> transcript (local mode)
   let waiting = null;        // { itemId, resolve } (local mode)
   const semantic = TURN_DETECTION === 'semantic';
-  const listener = { speechStoppedAt: null };
+  const listener = { speechStoppedAt: null, speechPending: false };
 
   (async () => {
     try {
@@ -52,7 +55,9 @@ export function createListener({ onTurn = () => {} } = {}) {
           } },
         },
       });
+      rt.on('input_audio_buffer.speech_started', () => { listener.speechPending = true; });
       rt.on('input_audio_buffer.speech_stopped', () => { listener.speechStoppedAt = Date.now(); });
+      rt.on('input_audio_buffer.committed', () => { listener.speechPending = false; });
       rt.on('conversation.item.input_audio_transcription.completed', (e) => {
         if (semantic) {
           const after = listener.speechStoppedAt ? Date.now() - listener.speechStoppedAt : null;
@@ -87,8 +92,10 @@ export function createListener({ onTurn = () => {} } = {}) {
     isSemanticLive() { return semantic && ready; },
     // Semantic mode: every frame while Doris listens.
     stream(f) { send([f]); },
+    // The exchange heard enough silence: end the turn now rather than wait for the semantic detector (T-018).
+    forceEnd() { if (ready && semantic && listener.speechPending) { listener.speechPending = false; rt.send({ type: 'input_audio_buffer.commit' }); return true; } return false; },
     // Doris is about to listen again: drop anything left over from before.
-    resume() { if (ready) rt.send({ type: 'input_audio_buffer.clear' }); resampler = new StreamResampler(LINE_RATE, LIVE_RATE); },
+    resume() { listener.speechPending = false; if (ready) rt.send({ type: 'input_audio_buffer.clear' }); resampler = new StreamResampler(LINE_RATE, LIVE_RATE); },
 
     // Local mode (and fallback), driven by the exchange's own detector:
     start(preRoll) { if (semantic) return; resampler = new StreamResampler(LINE_RATE, LIVE_RATE); if (ready) rt.send({ type: 'input_audio_buffer.clear' }); send(preRoll); },

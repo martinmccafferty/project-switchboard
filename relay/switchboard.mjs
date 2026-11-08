@@ -10,6 +10,7 @@ import os from 'node:os';
 import { WebSocketServer } from 'ws';
 import { wavToPcm, plugClick, silence } from './audio.mjs';
 import { operatorCall } from './call-operator.mjs';
+import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
 const PORT = Number(process.env.PORT) || 8080;
 const RATE = 16000;
@@ -21,6 +22,7 @@ const LEAD_MS = 100;                       // how far ahead of real time audio i
 const KNOWN_NUMBERS = new Set(['101', '911']);                    // grows with the service lines (D-26)
 const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
+const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
 const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
 const now = () => new Date().toLocaleTimeString();
 
@@ -89,11 +91,28 @@ class Outbound {
   close() { clearInterval(this.timer); this.clear(); }
 }
 
-// One phone line: hook state, dialing, and what the caller is connected to.
+// Every connected phone (softphone tabs now, the real phone later).
+const lines = new Set();
+
+// One phone line: hook state, dialing, ringing, and what the caller is connected to.
 function phoneLine(ws, from) {
   const out = new Outbound(ws);
   let state = 'onhook'; let digits = ''; let dialTimer = null; let connectedTo = null; let call = null; let lineId = 0;
-  const status = (text) => { ws.send(JSON.stringify({ type: 'status', text })); console.log(`[${now()}] ${from}: ${text}`); };
+  const send = (msg) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg)); };
+  const status = (text) => { send({ type: 'status', text }); console.log(`[${now()}] ${from}: ${text}`); };
+  let ringing = null; // the reminder this line is ringing for
+
+  // Doris has rung the caller back with a reminder they set (M4).
+  function deliverReminder(reminder) {
+    state = 'connected'; connectedTo = 'operator'; out.setTone(null);
+    status(`Reminder call: ${reminder.message}`);
+    call = operatorCall({ out, clips, status, opening: {
+      text: `Hello, this is the operator, ringing with your reminder: ${reminder.message}.`,
+      context: `You rang the caller to deliver a reminder they set earlier: "${reminder.message}" (it was due ${sayWhen(reminder.dueAt)}). `
+        + "You've already said: \"Hello, this is the operator, ringing with your reminder.\" plus the reminder itself. "
+        + 'If they want it again later, set a new reminder; otherwise be brief and let them get on.',
+    } });
+  }
 
   async function connect(number) {
     clearTimeout(dialTimer); state = 'connected'; out.setTone(null);
@@ -141,12 +160,53 @@ function phoneLine(ws, from) {
       return;
     }
     let msg; try { msg = JSON.parse(data.toString()); } catch { return; }
-    if (msg.type === 'offhook' && state === 'onhook') { state = 'offhook'; out.setTone('dial'); status('Off hook: dial tone'); }
+    if (msg.type === 'offhook' && state === 'onhook' && ringing) answerRing(line);
+    else if (msg.type === 'offhook' && state === 'onhook') { state = 'offhook'; out.setTone('dial'); status('Off hook: dial tone'); }
     else if (msg.type === 'onhook') { hangUp(); status('On hook'); }
     else if (msg.type === 'dial' && typeof msg.digits === 'string') for (const d of msg.digits) if (/[0-9*#]/.test(d)) onDigit(d);
   });
-  ws.on('close', () => { hangUp(); out.close(); console.log(`[${now()}] ${from}: disconnected`); });
+  ws.on('close', () => { lines.delete(line); hangUp(); out.close(); console.log(`[${now()}] ${from}: disconnected`); });
+
+  const line = {
+    get idle() { return state === 'onhook' && !ringing && ws.readyState === ws.OPEN; },
+    get ringingFor() { return ringing; },
+    ring(reminder) { ringing = reminder; send({ type: 'ring' }); status(`RINGING (reminder: ${reminder.message})`); },
+    stopRing() { if (ringing) { ringing = null; send({ type: 'stop_ring' }); } },
+    answer(reminder) { ringing = null; send({ type: 'stop_ring' }); deliverReminder(reminder); },
+  };
+  lines.add(line);
 }
+
+// --- Reminder ring-back (M4): ring every idle phone; the first to pick up gets Doris.
+const ringingNow = new Map(); // reminder id -> { reminder, timer }
+function answerRing(line) {
+  const reminder = line.ringingFor;
+  const entry = ringingNow.get(reminder.id);
+  if (!entry) return;
+  clearTimeout(entry.timer); ringingNow.delete(reminder.id);
+  for (const l of lines) if (l !== line && l.ringingFor?.id === reminder.id) l.stopRing();
+  markDelivered(reminder.id);
+  line.answer(reminder);
+}
+setInterval(() => {
+  for (const reminder of dueReminders()) {
+    if (ringingNow.has(reminder.id)) continue;
+    const idle = [...lines].filter((l) => l.idle);
+    if (!idle.length) {
+      // Every phone is on a call: wait till one hangs up. No phone at all: counts as unanswered.
+      if (!lines.size) markUnanswered(reminder.id);
+      continue;
+    }
+    const timer = setTimeout(() => {
+      ringingNow.delete(reminder.id);
+      for (const l of lines) if (l.ringingFor?.id === reminder.id) l.stopRing();
+      markUnanswered(reminder.id);
+      console.log(`[${now()}] Reminder "${reminder.message}" not answered`);
+    }, RING_FOR_MS);
+    ringingNow.set(reminder.id, { reminder, timer });
+    for (const l of idle) l.ring(reminder);
+  }
+}, 1000);
 
 // Static files for the browser softphone.
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };

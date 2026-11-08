@@ -1,4 +1,5 @@
-// Operator tools (M1): time and weather. Each tool = a definition Claude sees + a function the relay runs.
+// Operator tools: time and weather (M1), reminders (M4). Each tool = a definition Claude sees + a function the relay runs.
+import { reminderTools, reminderHandlers } from './reminders.mjs';
 // Weather uses Open-Meteo (free, no API key). Default location: Morrisville, NC.
 
 const HOME = {
@@ -112,7 +113,8 @@ async function getWeather({ location } = {}) {
   };
 }
 
-const handlers = { get_time: getTime, get_weather: getWeather };
+toolDefinitions.push(...reminderTools);
+const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.
 export async function runTool(name, input) {

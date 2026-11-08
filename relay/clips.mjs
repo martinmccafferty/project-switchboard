@@ -10,6 +10,9 @@ import { toolAnnouncements } from './tools.mjs';
 import { writeWav, toPhoneRate, plugClick, silence } from './audio.mjs';
 
 const PHONE_RATE = 16000;
+// Hold lines (D-32): when Claude takes a while to think (a limerick, a poem), the caller hears one of these, then the tick.
+const HOLD_LINES = ['Ooh, let me think on that a moment.', 'Now then, give me a moment with that one.', 'Let me see now.'];
+const holdClips = Object.fromEntries(HOLD_LINES.map((text, i) => [`hold-${i + 1}`, { text }]));
 const CLIPS = {
   doris: {
     greeting: { text: 'Operator. How may I help you?', click: true },
@@ -21,6 +24,7 @@ const CLIPS = {
     'echo-test': { text: "Echo test line. Speak, and you'll hear yourself." },
     // When Claude can't be reached at all, so the caller never sits in silence.
     'line-trouble': { text: "I'm terribly sorry, we're having some trouble on the line. Could you try me again in a moment?" },
+    ...holdClips,
   },
   ethel: {
     greeting: { text: 'Operator. How may I help you?', click: true },
@@ -30,6 +34,7 @@ const CLIPS = {
     pickup: { text: 'Ethel speaking. How may I help you?', click: true },
     connecting: { text: 'One moment, connecting you.' },
     ...Object.fromEntries(Object.entries(toolAnnouncements).map(([tool, text]) => [`announce-${tool}`, { text }])),
+    ...holdClips,
   },
 };
 

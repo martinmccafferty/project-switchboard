@@ -23,3 +23,4 @@ relay/roundtrip/
 relay/*.m4a
 relay/*.wav
 relay/cues/
+relay/data/

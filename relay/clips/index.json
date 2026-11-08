@@ -39,6 +39,21 @@
       "text": "I'm terribly sorry, we're having some trouble on the line. Could you try me again in a moment?",
       "click": false,
       "seconds": 6.1
+    },
+    "hold-1": {
+      "text": "Ooh, let me think on that a moment.",
+      "click": false,
+      "seconds": 3.2
+    },
+    "hold-2": {
+      "text": "Now then, give me a moment with that one.",
+      "click": false,
+      "seconds": 3.3
+    },
+    "hold-3": {
+      "text": "Let me see now.",
+      "click": false,
+      "seconds": 1.45
     }
   },
   "ethel": {
@@ -71,6 +86,21 @@
       "text": "One moment, I'll ring the weather bureau.",
       "click": false,
       "seconds": 2.6
+    },
+    "hold-1": {
+      "text": "Ooh, let me think on that a moment.",
+      "click": false,
+      "seconds": 2.68
+    },
+    "hold-2": {
+      "text": "Now then, give me a moment with that one.",
+      "click": false,
+      "seconds": 3
+    },
+    "hold-3": {
+      "text": "Let me see now.",
+      "click": false,
+      "seconds": 1.8
     }
   }
 }
