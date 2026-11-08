@@ -76,7 +76,7 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
         if (block.type !== 'tool_use') continue;
         if (toolAnnouncements[block.name] && !announced.has(block.name)) {
           announced.add(block.name);
-          onAnnounce(toolAnnouncements[block.name]);
+          onAnnounce(toolAnnouncements[block.name], block.name);
         }
         onTool(block.name, block.input);
         const { content, isError } = await runTool(block.name, block.input);

@@ -1,0 +1,158 @@
+// A live call to Doris (M3 step 2): listens for the caller's turn, transcribes it, lets Claude reply as Doris,
+// and speaks the reply sentence by sentence. Stored clips cover the instant lines; the clock tick fills waits.
+// One instance per call; the exchange (switchboard.mjs) feeds it the caller's audio frames.
+import OpenAI, { toFile } from 'openai';
+import { createOperator } from './operator.mjs';
+import { operatorSpeaker, SAMPLE_RATE } from './voices.mjs';
+import { toPhoneRate, wavBuffer, waitingCue } from './audio.mjs';
+
+const RATE = 16000;
+const END_SILENCE_MS = Number(process.env.END_SILENCE_MS) || 800; // quiet that ends the caller's turn
+const TICK = waitingCue('clock-tick', 10000, RATE);               // D-20, looped while waiting
+const TICK_FALLBACK_MS = 4000; // the tick plays during lookups; otherwise only if a plain reply is this slow
+const PHONE_BUFFER_MS = 400;                                      // lets the phone finish playing before listening again
+const openai = new OpenAI();
+
+// Energy-based turn detection on 20 ms frames, with a slowly adapting noise floor.
+class TurnDetector {
+  constructor() { this.floor = -60; this.reset(); }
+  reset() { this.speaking = false; this.run = 0; this.quietMs = 0; this.voicedFrames = 0; this.frames = []; this.preRoll = []; }
+  // Returns the caller's utterance (PCM) when a turn ends, else null.
+  push(frame) {
+    let sum = 0;
+    for (let i = 0; i < frame.length; i += 2) { const v = frame.readInt16LE(i) / 32768; sum += v * v; }
+    const db = 10 * Math.log10(sum / (frame.length / 2) + 1e-10);
+    const threshold = Math.max(this.floor + 12, -50);
+    const voiced = db > threshold;
+    if (!this.speaking) {
+      this.floor = db < this.floor ? db : this.floor + 0.02 * (db - this.floor);
+      this.preRoll.push(frame); if (this.preRoll.length > 15) this.preRoll.shift(); // 300 ms before speech starts
+      this.run = voiced ? this.run + 1 : 0;
+      if (this.run >= 3) { this.speaking = true; this.frames = [...this.preRoll]; this.voicedFrames = 3; this.quietMs = 0; }
+      return null;
+    }
+    this.frames.push(frame);
+    if (voiced) { this.voicedFrames++; this.quietMs = 0; } else this.quietMs += 20;
+    if (this.quietMs < END_SILENCE_MS && this.frames.length < 1500) return null; // 30 s cap
+    const utterance = this.voicedFrames >= 10 ? Buffer.concat(this.frames) : null;   // ignore clicks and coughs
+    this.reset();
+    return utterance;
+  }
+}
+
+export function operatorCall({ out, clips, status }) {
+  let active = true; let listening = false;
+  const detector = new TurnDetector();
+  const operator = createOperator({ onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
+  const handlers = { text: () => {}, announce: () => {} };
+
+  // Doris's voice opens while the greeting plays. If it fails, Ethel takes over the call (D-24).
+  let voiceName = 'doris';
+  let voice = operatorSpeaker('doris').catch((err) => { console.log(`Doris's voice failed to open: ${err.message}`); return null; });
+  async function speak(text) {
+    try {
+      const v = await voice;
+      if (!v) throw new Error('no voice connection');
+      return await v.speak(text);
+    } catch (err) {
+      if (voiceName !== 'doris') throw err;
+      console.log(`Doris's voice failed (${err.message}); Ethel takes over`);
+      status('Ethel has taken over the board');
+      voiceName = 'ethel';
+      (await voice)?.close();
+      out.play(clips.ethel.takeover);
+      voice = operatorSpeaker('ethel');
+      return (await voice).speak(text);
+    }
+  }
+
+  (async () => {
+    await out.play(clips.doris.greeting);
+    if (active) { listening = true; status('Doris is listening'); }
+  })();
+
+  async function handleTurn(pcm) {
+    listening = false;
+    const t0 = Date.now(); const ms = () => Date.now() - t0;
+    const timing = {};
+    const tickTimer = setTimeout(() => active && out.setFiller(TICK), TICK_FALLBACK_MS);
+    let lastSaid = null; // 'announcement' | 'speech'
+    let chain = Promise.resolve(); let lastPlay = Promise.resolve();
+
+    // Everything Doris says goes through one ordered chain: render the voice, then queue it on the line.
+    const enqueue = (job) => { chain = chain.then(() => (active ? job() : null)); };
+    const sayClip = (clip, { thenTick = false } = {}) => enqueue(() => {
+      if (!clip) return;
+      lastPlay = out.play(clip); timing.firstSound ??= ms();
+      if (thenTick) { clearTimeout(tickTimer); out.setFiller(TICK); }
+    });
+    const saySentence = (text) => { lastSaid = 'speech'; enqueue(async () => {
+      const { pcm: voicePcm } = await speak(text);
+      if (!active) return;
+      clearTimeout(tickTimer); out.setFiller(null);
+      lastPlay = out.play(toPhoneRate(voicePcm, SAMPLE_RATE, RATE));
+      timing.firstSound ??= ms();
+    }); };
+
+    // No "connecting you" in conversation: the caller is already connected to Doris (Martin, T-012). The tool
+    // announcements are the "connecting" moments.
+    try {
+      const file = await toFile(wavBuffer(pcm, RATE), 'caller.wav');
+      const { text: heard } = await openai.audio.transcriptions.create({
+        file, model: process.env.OPENAI_STT_MODEL || 'gpt-transcribe',
+        prompt: 'A caller speaking to Doris, a telephone switchboard operator.',
+      });
+      timing.heard = ms();
+      if (!active) return;
+      if (!heard.trim()) throw new Error('nothing heard');
+      status(`Caller: "${heard}"`);
+
+      let pending = '';
+      handlers.text = (delta) => {
+        pending += delta;
+        let m;
+        while ((m = pending.match(/^(.+?[.!?]["')]?)\s+/s))) { saySentence(m[1].trim()); pending = pending.slice(m[0].length); }
+      };
+      handlers.announce = (phrase, tool) => {
+        // Two lookups in a row get one announcement, not two "One moment..."s.
+        if (lastSaid === 'announcement') return;
+        lastSaid = 'announcement';
+        const clip = clips[voiceName][`announce-${tool}`];
+        if (clip) sayClip(clip, { thenTick: true });
+        else saySentence(phrase);
+      };
+      await operator.ask(heard);
+      timing.claude = ms();
+      if (pending.trim()) saySentence(pending.trim());
+      await chain; await lastPlay;
+      timing.done = ms();
+      console.log(`Turn: heard ${timing.heard} ms, first sound ${timing.firstSound} ms, Claude done ${timing.claude} ms, all sent ${timing.done} ms`);
+    } catch (err) {
+      if (!active) return;
+      if (err.message === 'nothing heard') { console.log('Turn: nothing heard'); }
+      else {
+        console.log(`Turn failed: ${err.message}`);
+        await chain.catch(() => {});
+        clearTimeout(tickTimer); out.setFiller(null);
+        await out.play(clips.doris['line-trouble']);
+      }
+    } finally {
+      clearTimeout(tickTimer); out.setFiller(null);
+      handlers.text = () => {}; handlers.announce = () => {};
+    }
+    await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
+    if (active) { detector.reset(); listening = true; status('Doris is listening'); }
+  }
+
+  return {
+    onAudio(frame) {
+      if (!active || !listening) return;
+      const utterance = detector.push(frame);
+      if (utterance) handleTurn(utterance);
+    },
+    hangUp() {
+      active = false; listening = false; out.setFiller(null);
+      voice.then((v) => v?.close()).catch(() => {});
+    },
+  };
+}

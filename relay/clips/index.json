@@ -34,6 +34,11 @@
       "text": "This telephone cannot reach emergency services. Please hang up and dial nine one one from a mobile phone.",
       "click": false,
       "seconds": 7.75
+    },
+    "line-trouble": {
+      "text": "I'm terribly sorry, we're having some trouble on the line. Could you try me again in a moment?",
+      "click": false,
+      "seconds": 6.1
     }
   },
   "ethel": {

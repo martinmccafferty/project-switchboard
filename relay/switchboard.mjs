@@ -8,14 +8,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { WebSocketServer } from 'ws';
-import { wavToPcm } from './audio.mjs';
+import { wavToPcm, plugClick, silence } from './audio.mjs';
+import { operatorCall } from './call-operator.mjs';
 
 const PORT = Number(process.env.PORT) || 8080;
 const RATE = 16000;
 const FRAME_SAMPLES = 320;                 // 20 ms
 const FRAME_BYTES = FRAME_SAMPLES * 2;
 const LEAD_MS = 100;                       // how far ahead of real time audio is sent (phone keeps a playout buffer, D-16)
-const DIAL_TIMEOUT_MS = 5000;              // gap after a digit before a short number is given up on
+// A number is complete when the caller stops dialing (dial pace varies; the real dial is rotary-style).
+// Timings are first guesses, to tune on the real dial in Phase 4.
+const KNOWN_NUMBERS = new Set(['101', '911']);                    // grows with the service lines (D-26)
+const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
+const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
+const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -35,7 +41,7 @@ const tones = {
 // Sends audio to one phone at real-time pace: queued clips/speech first, otherwise a tone, otherwise nothing.
 class Outbound {
   constructor(ws) {
-    this.ws = ws; this.queue = []; this.tone = null; this.toneN = 0;
+    this.ws = ws; this.queue = []; this.tone = null; this.toneN = 0; this.filler = null; this.fillerOffset = 0;
     this.sentMs = 0; this.clockStart = Date.now(); this.idle = true;
     this.timer = setInterval(() => this.tick(), 10);
   }
@@ -43,6 +49,8 @@ class Outbound {
   play(pcm) { return new Promise((resolve) => { this.queue.push({ pcm, offset: 0, resolve }); }); }
   clear() { for (const item of this.queue) item.resolve(); this.queue = []; }
   setTone(name) { this.tone = name ? tones[name] : null; this.toneN = 0; }
+  // Background sound looped whenever nothing is queued (the waiting tick, D-20); null to stop.
+  setFiller(pcm) { if (pcm !== this.filler) { this.filler = pcm; this.fillerOffset = 0; } }
   nextFrame() {
     while (this.queue.length) {
       const item = this.queue[0];
@@ -53,6 +61,14 @@ class Outbound {
         return frame;
       }
       this.queue.shift(); item.resolve();
+    }
+    if (this.filler) {
+      const frame = Buffer.alloc(FRAME_BYTES);
+      for (let i = 0; i < FRAME_BYTES; i += 2) {
+        frame.writeInt16LE(this.filler.readInt16LE(this.fillerOffset), i);
+        this.fillerOffset = (this.fillerOffset + 2) % this.filler.length;
+      }
+      return frame;
     }
     if (!this.tone) return null;
     const frame = Buffer.alloc(FRAME_BYTES);
@@ -76,15 +92,20 @@ class Outbound {
 // One phone line: hook state, dialing, and what the caller is connected to.
 function phoneLine(ws, from) {
   const out = new Outbound(ws);
-  let state = 'onhook'; let digits = ''; let dialTimer = null; let connectedTo = null;
+  let state = 'onhook'; let digits = ''; let dialTimer = null; let connectedTo = null; let call = null; let lineId = 0;
   const status = (text) => { ws.send(JSON.stringify({ type: 'status', text })); console.log(`[${now()}] ${from}: ${text}`); };
 
   async function connect(number) {
     clearTimeout(dialTimer); state = 'connected'; out.setTone(null);
+    if (number !== '0') {
+      // Like a real exchange: a pause and a faint switching click, so nothing starts over the last key's beep.
+      const id = lineId;
+      await out.play(Buffer.concat([silence(SWITCHING_MS, RATE), plugClick(RATE)]));
+      if (id !== lineId || state !== 'connected') return; // hung up meanwhile
+    }
     if (number === '0') {
       connectedTo = 'operator'; status('Operator');
-      await out.play(clips.doris.greeting);
-      // Live conversation with Doris comes in the next M3 step.
+      call = operatorCall({ out, clips, status });
     } else if (number === '911') {
       connectedTo = 'announcement'; status('911: emergency notice');
       for (let i = 0; i < 2 && state === 'connected'; i++) await out.play(clips.doris['no-emergency']);
@@ -102,18 +123,21 @@ function phoneLine(ws, from) {
     if (state !== 'dialing') return;
     digits += d; status(`Dialed ${digits}`);
     clearTimeout(dialTimer);
-    if (digits === '0' || digits.length === 3) connect(digits);
-    else dialTimer = setTimeout(() => state === 'dialing' && connect(digits), DIAL_TIMEOUT_MS);
+    if (digits === '0' || digits.length >= 15) { connect(digits); return; } // 0 = Doris at once (D-17)
+    const wait = KNOWN_NUMBERS.has(digits) ? SETTLE_MS : DIAL_TIMEOUT_MS;
+    dialTimer = setTimeout(() => state === 'dialing' && connect(digits), wait);
   }
 
   function hangUp() {
-    clearTimeout(dialTimer); out.clear(); out.setTone(null);
-    state = 'onhook'; digits = ''; connectedTo = null;
+    clearTimeout(dialTimer); call?.hangUp(); call = null; out.clear(); out.setTone(null); out.setFiller(null);
+    state = 'onhook'; lineId++; digits = ''; connectedTo = null;
   }
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
-      if (connectedTo === 'echo' && data.length === FRAME_BYTES) out.play(Buffer.from(data));
+      if (data.length !== FRAME_BYTES) return;
+      if (connectedTo === 'echo') out.play(Buffer.from(data));
+      else if (connectedTo === 'operator') call?.onAudio(Buffer.from(data));
       return;
     }
     let msg; try { msg = JSON.parse(data.toString()); } catch { return; }

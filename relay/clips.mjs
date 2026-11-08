@@ -19,6 +19,8 @@ const CLIPS = {
     'no-emergency': { text: 'This telephone cannot reach emergency services. Please hang up and dial nine one one from a mobile phone.' },
     'not-in-service': { text: "I'm sorry, the number you have dialed is not in service. Please hang up and dial zero for the operator." },
     'echo-test': { text: "Echo test line. Speak, and you'll hear yourself." },
+    // When Claude can't be reached at all, so the caller never sits in silence.
+    'line-trouble': { text: "I'm terribly sorry, we're having some trouble on the line. Could you try me again in a moment?" },
   },
   ethel: {
     greeting: { text: 'Operator. How may I help you?', click: true },
