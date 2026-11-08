@@ -54,6 +54,16 @@
       "text": "Let me see now.",
       "click": false,
       "seconds": 1.45
+    },
+    "announce-move_blinds": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.35
+    },
+    "announce-blinds_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.4
     }
   },
   "ethel": {
@@ -101,6 +111,16 @@
       "text": "Let me see now.",
       "click": false,
       "seconds": 1.8
+    },
+    "announce-move_blinds": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.4
+    },
+    "announce-blinds_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.36
     }
   }
 }

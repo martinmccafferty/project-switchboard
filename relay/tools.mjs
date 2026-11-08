@@ -1,5 +1,6 @@
-// Operator tools: time and weather (M1), reminders (M4). Each tool = a definition Claude sees + a function the relay runs.
+// Operator tools: time and weather (M1), reminders and blinds (M4). Each tool = a definition Claude sees + a function the relay runs.
 import { reminderTools, reminderHandlers } from './reminders.mjs';
+import { homeTools, homeHandlers } from './switchbot.mjs';
 // Weather uses Open-Meteo (free, no API key). Default location: Morrisville, NC.
 
 const HOME = {
@@ -48,6 +49,8 @@ export const toolDefinitions = [
 export const toolAnnouncements = {
   get_time: 'One moment, let me check the clock.',
   get_weather: "One moment, I'll ring the weather bureau.",
+  move_blinds: 'Right away.',
+  blinds_status: 'One moment, let me take a look.',
 };
 
 async function fetchJson(url) {
@@ -113,8 +116,8 @@ async function getWeather({ location } = {}) {
   };
 }
 
-toolDefinitions.push(...reminderTools);
-const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers };
+toolDefinitions.push(...reminderTools, ...homeTools);
+const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.
 export async function runTool(name, input) {
