@@ -7,10 +7,12 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
-    "chat": "node --env-file-if-exists=.env chat.mjs"
+    "chat": "node --env-file-if-exists=.env chat.mjs",
+    "audition": "node --env-file-if-exists=.env audition.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "openai": "^7.53.0",
     "ws": "^8.18.0"
   },
   "engines": {

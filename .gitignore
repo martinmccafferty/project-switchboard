@@ -16,3 +16,6 @@ __pycache__/
 .DS_Store
 .vscode/
 node_modules/
+
+# Generated audio
+relay/audition/
