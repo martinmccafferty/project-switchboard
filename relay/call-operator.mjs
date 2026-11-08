@@ -47,7 +47,10 @@ class TurnDetector {
 
 export function operatorCall({ out, clips, status }) {
   let active = true; let listening = false;
-  const listener = createListener(); // live transcription connection opens while the greeting plays
+  // When the caller was last audibly speaking (measured here, for timing what the caller actually waits).
+  let lastVoicedAt = 0; let floorDb = -60;
+  // Live transcription opens while the greeting plays. In semantic mode it also decides when the caller is done.
+  const listener = createListener({ onTurn: (text) => { if (active && listening) handleTurn(async () => ({ text, live: true })); } });
   const detector = new TurnDetector(listener);
   const operator = createOperator({ onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
   const handlers = { text: () => {}, announce: () => {} };
@@ -79,10 +82,14 @@ export function operatorCall({ out, clips, status }) {
     if (active) { listening = true; status('Doris is listening'); }
   })();
 
-  async function handleTurn(pcm) {
+  // getTranscript() resolves to { text, live }.
+  async function handleTurn(getTranscript) {
     listening = false;
     const t0 = Date.now(); const ms = () => Date.now() - t0;
     const timing = {};
+    // How long since the caller's last audible sound, and how long the turn detector held on after it.
+    timing.sinceLastWord = lastVoicedAt ? t0 - lastVoicedAt : null;
+    timing.detectorHold = lastVoicedAt && listener.speechStoppedAt ? listener.speechStoppedAt - lastVoicedAt : null;
     const tickTimer = setTimeout(() => active && out.setFiller(TICK), TICK_FALLBACK_MS);
     let lastSaid = null; // 'announcement' | 'speech'
     let chain = Promise.resolve(); let lastPlay = Promise.resolve();
@@ -107,7 +114,7 @@ export function operatorCall({ out, clips, status }) {
     // No "connecting you" in conversation: the caller is already connected to Doris (Martin, T-012). The tool
     // announcements are the "connecting" moments.
     try {
-      const { text: heard, live } = await listener.finish(pcm);
+      const { text: heard, live } = await getTranscript();
       timing.heard = ms(); timing.liveTranscript = live;
       if (!active) return;
       if (!heard.trim()) throw new Error('nothing heard');
@@ -136,12 +143,14 @@ export function operatorCall({ out, clips, status }) {
         if (clip) sayClip(clip, { thenTick: true });
         else saySentence(phrase);
       };
-      await operator.ask(heard);
+      const reply = await operator.ask(heard);
+      console.log(`Doris: "${reply.replace(/\s+/g, ' ').trim()}"`);
       timing.claude = ms();
       if (pending.trim()) saySentence(pending.trim());
       await chain; await lastPlay;
       timing.done = ms();
-      console.log(`Turn: heard ${timing.heard} ms | Claude first words ${timing.firstText} | first chunk ${timing.firstChunk} | first sound ${timing.firstSound} | Claude done ${timing.claude} | all sent ${timing.done} ms`);
+      const heardAfter = timing.sinceLastWord; // caller's last word -> transcript ready
+      console.log(`Turn: last word -> transcript ${heardAfter} ms (detector hold ${timing.detectorHold}) | Claude first words +${timing.firstText} | first sound +${timing.firstSound} | caller waited ~${heardAfter + timing.firstSound} ms`);
       console.log(`TIMING ${JSON.stringify(timing)}`);
     } catch (err) {
       if (!active) return;
@@ -157,14 +166,22 @@ export function operatorCall({ out, clips, status }) {
       handlers.text = () => {}; handlers.announce = () => {};
     }
     await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
-    if (active) { detector.reset(); listening = true; status('Doris is listening'); }
+    if (active) { detector.reset(); listener.resume(); listening = true; status('Doris is listening'); }
   }
 
   return {
     onAudio(frame) {
       if (!active || !listening) return;
+      // Passive level meter (same rule as the detector) to timestamp the caller's last audible sound.
+      let sum = 0;
+      for (let i = 0; i < frame.length; i += 2) { const v = frame.readInt16LE(i) / 32768; sum += v * v; }
+      const db = 10 * Math.log10(sum / (frame.length / 2) + 1e-10);
+      if (db > Math.max(floorDb + 12, -50)) lastVoicedAt = Date.now();
+      else floorDb = db < floorDb ? db : floorDb + 0.02 * (db - floorDb);
+      if (listener.isSemanticLive()) { listener.stream(frame); return; }
+      // Fallback (or TURN_DETECTION=local): the exchange's own detector finds the end of the turn.
       const utterance = detector.push(frame);
-      if (utterance) handleTurn(utterance);
+      if (utterance) handleTurn(() => listener.finish(utterance));
     },
     hangUp() {
       active = false; listening = false; out.setFiller(null); listener.close();

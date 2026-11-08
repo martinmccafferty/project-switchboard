@@ -32,7 +32,8 @@ export const toolDefinitions = [
   },
   {
     name: 'get_weather',
-    description: "Current weather and today's/tomorrow's forecast. Omit location for the caller's home.",
+    description: "Current weather, an hour-by-hour forecast for the next 24 hours, and today's/tomorrow's "
+      + "forecast. Omit location for the caller's home.",
     input_schema: {
       type: 'object',
       properties: {
@@ -76,8 +77,15 @@ async function getWeather({ location } = {}) {
   const w = await fetchJson('https://api.open-meteo.com/v1/forecast'
     + `?latitude=${place.latitude}&longitude=${place.longitude}`
     + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m'
+    + '&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=24'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
     + '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=2');
+  // "2026-11-08T14:00" (already the place's local time) -> "2 PM Sunday"
+  const label = (iso) => {
+    const d = new Date(`${iso}:00Z`);
+    return `${d.getUTCHours() % 12 || 12} ${d.getUTCHours() < 12 ? 'AM' : 'PM'} `
+      + d.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  };
   const day = (i) => ({
     conditions: WEATHER_WORDS[w.daily.weather_code[i]] ?? 'unknown',
     high_f: Math.round(w.daily.temperature_2m_max[i]),
@@ -86,12 +94,19 @@ async function getWeather({ location } = {}) {
   });
   return {
     location: place.name,
+    local_time_there: label(w.current.time.slice(0, 13) + ':00').replace(/^(\d+) /, `$1:${w.current.time.slice(14, 16)} `),
     now: {
       conditions: WEATHER_WORDS[w.current.weather_code] ?? 'unknown',
       temperature_f: Math.round(w.current.temperature_2m),
       feels_like_f: Math.round(w.current.apparent_temperature),
       wind_mph: Math.round(w.current.wind_speed_10m),
     },
+    next_24_hours: w.hourly.time.map((t, i) => ({
+      time: label(t),
+      temperature_f: Math.round(w.hourly.temperature_2m[i]),
+      conditions: WEATHER_WORDS[w.hourly.weather_code[i]] ?? 'unknown',
+      chance_of_rain_percent: w.hourly.precipitation_probability[i],
+    })),
     today: day(0),
     tomorrow: day(1),
   };
