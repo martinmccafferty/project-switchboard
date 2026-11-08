@@ -1,11 +1,19 @@
 {
   "name": "switchboard-relay",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Project Switchboard AI relay (step 4: hello-world WebSocket server)",
+  "description": "Project Switchboard AI relay: phone WebSocket server and the Operator (Claude)",
   "type": "module",
   "main": "server.mjs",
-  "scripts": { "start": "node server.mjs" },
-  "dependencies": { "ws": "^8.18.0" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "chat": "node --env-file-if-exists=.env chat.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=22.9"
+  }
 }

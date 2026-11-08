@@ -3,6 +3,7 @@
 .env*
 secrets.*
 **/secrets.h
+!*.example
 
 # Build output
 build/
