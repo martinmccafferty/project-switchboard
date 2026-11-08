@@ -30,10 +30,14 @@ export async function openaiSpeaker({ voice, style }) {
   });
   await new Promise((resolve) => rt.once('session.updated', resolve));
 
-  async function speak(text) {
+  // onChunk(pcm) receives audio as it is generated, for streaming onto the line.
+  async function speak(text, onChunk = () => {}) {
     const started = Date.now(); let first = null;
     const chunks = []; let transcript = '';
-    const onAudio = (e) => { first ??= Date.now() - started; chunks.push(Buffer.from(e.delta, 'base64')); };
+    const onAudio = (e) => {
+      first ??= Date.now() - started;
+      const pcm = Buffer.from(e.delta, 'base64'); chunks.push(pcm); onChunk(pcm);
+    };
     const onWords = (e) => { transcript += e.delta; };
     rt.on('response.output_audio.delta', onAudio);
     rt.on('response.output_audio_transcript.delta', onWords);
@@ -80,7 +84,7 @@ export async function geminiSpeaker({ voice, style, maxRateLimitWaits = 0, onWai
     }),
   });
 
-  async function speak(text) {
+  async function speak(text, onChunk = () => {}) {
     let started = Date.now();
     let res = await request(text);
     // Rate-limited: wait as long as Google says, if that's short.
@@ -105,7 +109,7 @@ export async function geminiSpeaker({ voice, style, maxRateLimitWaits = 0, onWai
         const event = JSON.parse(line.slice(5));
         if (event.event_type === 'step.delta' && event.delta?.type === 'audio' && event.delta.data) {
           first ??= Date.now() - started;
-          chunks.push(Buffer.from(event.delta.data, 'base64'));
+          const pcm = Buffer.from(event.delta.data, 'base64'); chunks.push(pcm); onChunk(pcm);
         }
       }
     }

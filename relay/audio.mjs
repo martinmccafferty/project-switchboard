@@ -123,3 +123,32 @@ export function waitingCue(name, ms, sampleRate = 16000) {
   for (let n = 0; n < fade; n++) { x[n] *= n / fade; x[x.length - 1 - n] *= n / fade; }
   return toPcm(x);
 }
+
+// Converts a stream of 16-bit PCM chunks between rates (24 kHz voice -> 16 kHz line, or 16 kHz caller -> 24 kHz),
+// keeping filter and position state between chunks so the joins are seamless.
+export class StreamResampler {
+  constructor(from, to = 16000) {
+    this.step = from / to; this.pos = 0; this.prev = 0;
+    // Anti-alias / anti-image low-pass at 45% of the lower of the two rates.
+    const w = (2 * Math.PI * Math.min(from, to) * 0.45) / from; const cos = Math.cos(w); const alpha = Math.sin(w) / Math.SQRT2;
+    const a0 = 1 + alpha;
+    this.b = [(1 - cos) / 2 / a0, (1 - cos) / a0, (1 - cos) / 2 / a0]; this.a = [-2 * cos / a0, (1 - alpha) / a0];
+    this.s = [[0, 0, 0, 0], [0, 0, 0, 0]];
+  }
+  lowPass(x) {
+    for (const s of this.s) {
+      const y = this.b[0] * x + this.b[1] * s[0] + this.b[2] * s[1] - this.a[0] * s[2] - this.a[1] * s[3];
+      s[1] = s[0]; s[0] = x; s[3] = s[2]; s[2] = y; x = y;
+    }
+    return x;
+  }
+  push(pcm) {
+    const out = [];
+    for (let i = 0; i + 1 < pcm.length; i += 2) {
+      const x = this.lowPass(pcm.readInt16LE(i) / 32768);
+      while (this.pos <= 1) { out.push(this.prev + (x - this.prev) * this.pos); this.pos += this.step; }
+      this.pos -= 1; this.prev = x;
+    }
+    return toPcm(out);
+  }
+}

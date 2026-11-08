@@ -7,6 +7,8 @@ import { toolDefinitions, toolAnnouncements, runTool } from './tools.mjs';
 // Model names are configuration (phase 5 brief). Lower effort = faster replies, which matters on a phone call.
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 const EFFORT = process.env.CLAUDE_EFFORT || 'low';
+// Server-side model fallback (D-22) exists for Opus, Sonnet and Fable models, not Haiku.
+const FALLBACK = /opus|sonnet|fable/.test(MODEL) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {};
 
 const PERSONA = `You are Doris, the Operator: a warm, crisp, efficient 1950s American telephone switchboard operator.
 Your relief operator is Ethel. If the caller asks your name, you're Doris; you needn't volunteer it.
@@ -53,8 +55,7 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
         max_tokens: 4000,
         output_config: { effort: EFFORT },
         // If a safety classifier declines, the API retries on a fallback model instead of failing the call.
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
+        ...FALLBACK,
         system: PERSONA,
         tools: toolDefinitions,
         messages,
