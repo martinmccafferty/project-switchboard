@@ -21,8 +21,9 @@ phone audio (16 kHz, 16-bit mono PCM over WebSocket) → relay
 - Model names are configuration, never hard-coded. Pick a current Claude model that balances speed and quality.
 
 ## Persona and filler policy
-- **Dial 0** → the phone immediately plays a stored clip: switchboard plug sound + "One moment, connecting you…",
-  covering connection setup. Then the live operator greets ("Operator. How may I help you?").
+- **Dial 0** → the phone instantly plays a stored clip: switchboard plug click + "Operator. How may I help you?"
+  (zero latency; covers connection setup).
+- After the caller's **first** request → stored clip "One moment, connecting you…" while the first reply is prepared.
 - **No scripted filler on later turns.** Only if a reply takes longer than ~1.5 s, play a very short cue (a soft
   click or "Mm-hm"), and cut it off the moment real speech is ready.
 - Operator stays in character but stays useful: short spoken answers, no lists or markdown, confirms actions
