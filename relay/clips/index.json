@@ -19,6 +19,21 @@
       "text": "One moment, I'll ring the weather bureau.",
       "click": false,
       "seconds": 2.25
+    },
+    "not-in-service": {
+      "text": "I'm sorry, the number you have dialed is not in service. Please hang up and dial zero for the operator.",
+      "click": false,
+      "seconds": 6.1
+    },
+    "echo-test": {
+      "text": "Echo test line. Speak, and you'll hear yourself.",
+      "click": false,
+      "seconds": 3.35
+    },
+    "no-emergency": {
+      "text": "This telephone cannot reach emergency services. Please hang up and dial nine one one from a mobile phone.",
+      "click": false,
+      "seconds": 7.75
     }
   },
   "ethel": {

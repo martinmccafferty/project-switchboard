@@ -15,6 +15,10 @@ const CLIPS = {
     greeting: { text: 'Operator. How may I help you?', click: true },
     connecting: { text: 'One moment, connecting you.' },
     ...Object.fromEntries(Object.entries(toolAnnouncements).map(([tool, text]) => [`announce-${tool}`, { text }])),
+    // Exchange announcements (D-26). 911: this phone cannot reach emergency services, so say so plainly.
+    'no-emergency': { text: 'This telephone cannot reach emergency services. Please hang up and dial nine one one from a mobile phone.' },
+    'not-in-service': { text: "I'm sorry, the number you have dialed is not in service. Please hang up and dial zero for the operator." },
+    'echo-test': { text: "Echo test line. Speak, and you'll hear yourself." },
   },
   ethel: {
     greeting: { text: 'Operator. How may I help you?', click: true },
@@ -28,7 +32,10 @@ const CLIPS = {
 };
 
 const openai = new OpenAI();
-const words = (s) => s.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+// Spoken single digits ("nine one one") and written ones ("911") count as the same.
+const DIGITS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const words = (s) => s.toLowerCase().replace(/[^a-z0-9' ]/g, ' ').split(/\s+/).filter(Boolean)
+  .map((w) => (DIGITS.includes(w) ? String(DIGITS.indexOf(w)) : w)).join(' ').replace(/(\d) (?=\d)/g, '$1');
 
 // Transcribes a clip to make sure it says exactly its script (numbers written as digits count as a pass).
 async function heardRight(pcm, text) {
