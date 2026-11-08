@@ -31,3 +31,4 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - Relay: Node.js + `ws` WebSocket server on the computer; the board uses the "WebSockets" library by Markus Sattler.
 - macOS may ask to allow "node" to accept incoming connections; click Allow.
 - Streaming 16 kHz 16-bit mono audio (256 kbit/s) over Wi-Fi to a relay on the home network: zero loss, but frames arrive in bursts (worst gap ~130 ms). Plan for a ~150–200 ms playout buffer.
+- The ESP32 can be unplugged at any time (no shutdown needed); the last uploaded sketch runs again on next power-up. Just don't unplug mid-upload.
