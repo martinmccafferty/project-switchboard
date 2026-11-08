@@ -19,3 +19,6 @@ node_modules/
 
 # Generated audio
 relay/audition/
+relay/roundtrip/
+relay/*.m4a
+relay/*.wav

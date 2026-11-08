@@ -4,7 +4,7 @@
 // Writes audition/<engine>-<voice>.wav (clean) and ...-phone.wav (as heard through the handset).
 import fs from 'node:fs';
 import OpenAI, { toFile } from 'openai';
-import { engines, SAMPLE_RATE } from './voices.mjs';
+import { engines, SAMPLE_RATE, OPERATOR_STYLE } from './voices.mjs';
 import { writeWav, silence, phoneLine } from './audio.mjs';
 
 // Engines without their own transcript (Gemini) are checked by transcribing what they said.
@@ -18,8 +18,7 @@ async function transcribe(pcm) {
   return result.text;
 }
 
-const STYLE = 'A warm, crisp 1950s American telephone switchboard operator: clear mid-century diction, '
-  + 'brisk but friendly pace, a gentle smile in the voice, polite and efficient.';
+const STYLE = OPERATOR_STYLE;
 
 const LINES = [
   'Operator. How may I help you?',

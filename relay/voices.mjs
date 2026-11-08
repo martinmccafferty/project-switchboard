@@ -116,3 +116,15 @@ export async function geminiSpeaker({ voice, style, maxRateLimitWaits = 0, onWai
 }
 
 export const engines = { openai: openaiSpeaker, gemini: geminiSpeaker };
+
+// How the operators sound (D-25: voices chosen by ear in T-008).
+export const OPERATOR_STYLE = 'A warm, crisp 1950s American telephone switchboard operator: clear mid-century diction, '
+  + 'brisk but friendly pace, a gentle smile in the voice, polite and efficient.';
+export const operators = {
+  doris: { engine: 'openai', voice: process.env.DORIS_VOICE || 'coral' },
+  ethel: { engine: 'gemini', voice: process.env.ETHEL_VOICE || 'Sulafat' },
+};
+
+// Opens a speaker for a named operator (one per call; open it early, e.g. while the greeting clip plays).
+export const operatorSpeaker = (name, options = {}) =>
+  engines[operators[name].engine]({ voice: operators[name].voice, style: OPERATOR_STYLE, ...options });
