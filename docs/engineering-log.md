@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-07 (Log v1.29)
+**Last updated:** 2026-11-07 (Log v1.30)
 **Current phase:** Phase 0 — Identification & documentation
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -201,7 +201,8 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | D-14 | **Defer the audio codec board.** First try the ESP32-S3's built-in converters: ADC1 samples the AG1171's VOUT (biased to mid-supply), and PDM or sigma-delta output through an RC filter drives VIN, at telephone bandwidth (300–3400 Hz, 8–16 kHz sampling). Buy a codec only if quality proves inadequate | Minimize purchases. Telephone audio is narrowband, so built-in converters may suffice. Solder-free codec boards with line-level I/O proved scarce: SparkFun WM8960 with headers is retired, the weeBell POTS shield is sold out, and most modules ship with loose headers | 2026-11-07 | Active (revisit after first audio tests) |
 | D-15 | Produce a public **build guide** at the end of the project so others can build the same phone. Gotchas and practical lessons are collected as we go in `docs/build-guide-notes.md` | Martin's stated intention | 2026-11-07 | Active |
 | D-16 | Both ends of the audio path use a playout (jitter) buffer of ~150–200 ms, so bursty Wi-Fi delivery doesn't cause stutters | T-006: worst gap 132 ms, 4.3% of gaps over 60 ms, zero loss | 2026-11-07 | Active |
-| D-17 | Operator "brain" = **pipeline**: speech-to-text → **Claude** (with tools) → text-to-speech, orchestrated by the relay (option A). The thinking pause is covered by instant pre-recorded operator phrases ("One moment, connecting you…") and switchboard sound effects, stored on the phone or relay and played the moment the caller stops speaking | Martin is a keen Anthropic user; Claude is strong at tool use; each piece stays swappable; a short pause suits the vintage operator persona. Anthropic's API (as far as found, Nov 2026) has no speech-to-text, text-to-speech or realtime voice endpoint, so speech needs a second provider | 2026-11-08 | Active |
+| D-17 | Operator "brain" = **pipeline**: speech-to-text → **Claude** (with tools) → text-to-speech, orchestrated by the relay (option A). **Filler policy:** dialing 0 plays a stored switchboard sound + "One moment, connecting you…" once, covering connection setup; later turns get no scripted filler, only a very short cue (click or "Mm-hm") if a reply takes over ~1.5 s, cut off as soon as speech is ready | Martin is a keen Anthropic user; Claude is strong at tool use; each piece stays swappable. Anthropic's API (as far as found, Nov 2026) has no speech-to-text, text-to-speech or realtime voice endpoint. Martin: a long scripted line on every turn would outlast the real wait | 2026-11-08 | Active (filler policy refined same day) |
+| D-18 | Speech provider: **OpenAI** for both transcription and voice (TTS instructed to sound like a 1950s switchboard operator) | One API key and account covers both directions (simplest). Google's Gemini TTS can also be steered by style prompts, so the voice can be auditioned against it later if wanted | 2026-11-08 | Active |
 
 ---
 
@@ -213,7 +214,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | ~~Q-02~~ | ~~IC part numbers~~ Answered: U2 ≈ UTC1062, U3 unmarked, U4 = HT9200A, U6 = MB6F | — |
 | Q-03 | Does the phone have a tone/pulse setting anywhere? (Only VOLUME switch seen so far) | Phase 0–1 |
 | ~~Q-04~~ | ~~Where will the AI relay run?~~ Answered: Mac for development, Railway for production (D-11) | — |
-| Q-05 | Speech provider for the pipeline (D-17): prefer one Martin already has an account with (OpenAI, Google Cloud or IBM watsonx, all used by Continuum) to avoid new subscriptions; pay-per-use. Candidate: OpenAI (transcription plus a TTS voice that can be instructed to sound like a vintage operator) or Google Cloud Speech | Phase 5 |
+| ~~Q-05~~ | Answered by D-18 (OpenAI). Was: Speech provider for the pipeline (D-17): prefer one Martin already has an account with (OpenAI, Google Cloud or IBM watsonx, all used by Continuum) to avoid new subscriptions; pay-per-use. Candidate: OpenAI (transcription plus a TTS voice that can be instructed to sound like a vintage operator) or Google Cloud Speech | Phase 5 |
 | Q-06 | Google Home integration: ESP32 as a Matter device (good for "ring the phone" notifications); control in the other direction still unresolved | Phase 7 |
 | Q-07 | Solder-free permanent assembly method (pre-made carrier board, screw terminals, etc.) | Phase 8 |
 | ~~Q-08~~ | ~~ESP32 antenna variant~~ Answered: PCB antenna + optional U.FL (C-23) | — |
@@ -347,3 +348,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-07 | v1.27 | T-006 result (incl. 100% echo): zero loss, 256 kbit/s, bursty arrival (worst gap 132 ms); D-16 jitter buffer; Phase 2 complete |
 | 2026-11-07 | v1.28 | T-006 WAV check: clean, steady tone |
 | 2026-11-08 | v1.29 | D-17 operator pipeline with Claude and instant operator phrases; Q-05 narrowed to speech provider |
+| 2026-11-08 | v1.30 | D-17 filler policy refined; D-18 OpenAI for speech; Phase 5 brief written |
