@@ -1,12 +1,12 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-08 (Log v1.35)
-**Current phase:** Phase 0 — Identification & documentation
+**Last updated:** 2026-11-08 (Log v1.36)
+**Current phase:** Phase 5 — AI relay (operator) on the Mac; Phase 3 parts ordered, awaiting delivery
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
 >
-> Two copies are kept in sync: this file in the GitHub repo (`docs/engineering-log.md`, version history) and the Project Switchboard doc on claude.ai (`claude/switchboard-engineering-log.md`, read automatically by new chats).
+> Two copies are kept in sync: this file in the GitHub repo (`docs/engineering-log.md`, version history) and the Project Switchboard doc on claude.ai (`claude/engineering-log.md`, read automatically by new chats).
 
 ---
 
@@ -361,3 +361,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-08 | v1.33 | T-007 passed (M1 text operator). D-19 caller-neutral persona; D-20 non-verbal waiting cue (proposed); D-21 tool announcements; D-22 model fallback; Q-13 voice identification parked |
 | 2026-11-08 | v1.34 | D-23 in-character persona with honesty line (tested) |
 | 2026-11-08 | v1.35 | D-23: honesty reply now in period voice (tested) |
+| 2026-11-08 | v1.36 | Project doc renamed to `claude/engineering-log.md` (old `switchboard-engineering-log.md` removed); header phase corrected |
