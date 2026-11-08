@@ -1,0 +1,56 @@
+{
+  "doris": {
+    "greeting": {
+      "text": "Operator. How may I help you?",
+      "click": true,
+      "seconds": 2.52
+    },
+    "connecting": {
+      "text": "One moment, connecting you.",
+      "click": false,
+      "seconds": 2.15
+    },
+    "announce-get_time": {
+      "text": "One moment, let me check the clock.",
+      "click": false,
+      "seconds": 2.5
+    },
+    "announce-get_weather": {
+      "text": "One moment, I'll ring the weather bureau.",
+      "click": false,
+      "seconds": 2.25
+    }
+  },
+  "ethel": {
+    "greeting": {
+      "text": "Operator. How may I help you?",
+      "click": true,
+      "seconds": 2.89
+    },
+    "takeover": {
+      "text": "Hello? Sorry about that. Doris has gone home with a head cold, so I'm minding her board tonight. Now, where were we?",
+      "click": true,
+      "seconds": 8.45
+    },
+    "pickup": {
+      "text": "Ethel speaking. How may I help you?",
+      "click": true,
+      "seconds": 2.93
+    },
+    "connecting": {
+      "text": "One moment, connecting you.",
+      "click": false,
+      "seconds": 2.6
+    },
+    "announce-get_time": {
+      "text": "One moment, let me check the clock.",
+      "click": false,
+      "seconds": 2.52
+    },
+    "announce-get_weather": {
+      "text": "One moment, I'll ring the weather bureau.",
+      "click": false,
+      "seconds": 2.6
+    }
+  }
+}

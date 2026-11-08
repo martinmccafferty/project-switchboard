@@ -22,3 +22,4 @@ relay/audition/
 relay/roundtrip/
 relay/*.m4a
 relay/*.wav
+relay/cues/

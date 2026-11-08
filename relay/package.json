@@ -9,7 +9,9 @@
     "start": "node --env-file-if-exists=.env server.mjs",
     "chat": "node --env-file-if-exists=.env chat.mjs",
     "audition": "node --env-file-if-exists=.env audition.mjs",
-    "roundtrip": "node --env-file-if-exists=.env roundtrip.mjs"
+    "roundtrip": "node --env-file-if-exists=.env roundtrip.mjs",
+    "clips": "node --env-file-if-exists=.env clips.mjs",
+    "cues": "node --env-file-if-exists=.env cue-demo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
