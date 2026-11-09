@@ -1,15 +1,22 @@
-// The household's settings (D-35), so nothing about one home is written into the code:
-//   HOME_LOCATION   where home is, as a person would say it: "Morrisville, North Carolina"
-//   HOME_TIMEZONE   e.g. America/New_York (needed on Railway, whose servers run on UTC)
-//   TEMPERATURE_UNIT  fahrenheit (default) or celsius; wind speed follows (mph or km/h)
-// The relay looks the place up itself (Open-Meteo geocoding, free, no key); HOME_LATITUDE/HOME_LONGITUDE override.
-export const HOME_NAME = (process.env.HOME_LOCATION || process.env.HOME_LOCATION_NAME || '').trim();
-export const HOME_TOWN = HOME_NAME.split(',')[0].trim();
-export const HOME_TIMEZONE = process.env.HOME_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
-export const CELSIUS = /^c/i.test(process.env.TEMPERATURE_UNIT || '');
-export const UNITS = CELSIUS
-  ? { temperature: 'celsius', wind: 'kmh', temperatureWord: 'Celsius', windWords: 'kilometers an hour' }
-  : { temperature: 'fahrenheit', wind: 'mph', temperatureWord: 'Fahrenheit', windWords: 'miles an hour' };
+// Where home is, and the household's units and words, from the settings (settings.mjs, read live), so nothing
+// about one home is written into the code. The relay looks the place up itself (Open-Meteo geocoding, free, no
+// key) from the location as a person would say it ("Morrisville, North Carolina").
+import { settings } from './settings.mjs';
+
+// The household now: { name, town, timezone, celsius, units, keywords }.
+export function household() {
+  const h = settings().household ?? {};
+  const name = (h.location ?? '').trim(); const celsius = h.temperatureUnit === 'celsius';
+  return {
+    name, town: name.split(',')[0].trim(),
+    timezone: h.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    celsius,
+    units: celsius
+      ? { temperature: 'celsius', wind: 'kmh', temperatureWord: 'Celsius', windWords: 'kilometers an hour' }
+      : { temperature: 'fahrenheit', wind: 'mph', temperatureWord: 'Fahrenheit', windWords: 'miles an hour' },
+    keywords: h.transcribeKeywords ?? [],
+  };
+}
 
 const US_STATES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
   CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois',
@@ -54,17 +61,15 @@ async function lookup(place, rest) {
     latitude: hit.latitude, longitude: hit.longitude, timezone: hit.timezone };
 }
 
-// Home as a place (looked up once).
+// Home as a place (looked up again only when the location setting changes).
 let home = null;
 export async function homePlace() {
-  if (home) return home;
-  if (process.env.HOME_LATITUDE && process.env.HOME_LONGITUDE) {
-    home = { name: HOME_NAME, latitude: Number(process.env.HOME_LATITUDE), longitude: Number(process.env.HOME_LONGITUDE), timezone: HOME_TIMEZONE };
-  } else if (HOME_NAME) {
-    const found = await geocode(HOME_NAME);
-    if (!found) throw new Error(`Couldn't find HOME_LOCATION "${HOME_NAME}"`);
-    home = { ...found, name: HOME_NAME };
-  } else throw new Error('HOME_LOCATION is not set');
+  const { name, timezone } = household();
+  if (home?.name === name) return home;
+  if (!name) throw new Error('No home location is set');
+  const found = await geocode(name);
+  if (!found) throw new Error(`Couldn't find the home location "${name}"`);
+  home = { ...found, name, timezone };
   return home;
 }
 

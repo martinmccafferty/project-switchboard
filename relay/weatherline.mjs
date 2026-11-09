@@ -1,11 +1,11 @@
 // 234 weather line (D-26, D-35, D-36): a recorded-style forecast read by the services' voice (Charon) like a
-// 1960s radio bulletin. The caller dials 1 for home (the HOME_LOCATION setting) or 2 and says another place.
+// 1960s radio bulletin. The caller dials 1 for home (the household's location setting) or 2 and says another place.
 // The forecast repeats, with the operator hint between readings, until the caller hangs up or chooses again.
 // Bulletins come from the weather lookup Doris uses (Open-Meteo forecast models), voiced live; a voicing is reused
 // while its words are unchanged.
 // Stored clips:  node --env-file=.env weatherline.mjs      Today's home bulletin text:  ... weatherline.mjs --text
 import { getWeather } from './tools.mjs';
-import { geocodeSpoken, HOME_NAME, HOME_TOWN, UNITS, CELSIUS } from './home.mjs';
+import { geocodeSpoken, household } from './home.mjs';
 import { createListener } from './listen.mjs';
 import { numberWords, serviceSpeaker, renderPieces, transcribe } from './servicevoice.mjs';
 import { StreamResampler, silence } from './audio.mjs';
@@ -25,9 +25,9 @@ export const PIECES = {
 const deg = (n) => `${numberWords(n)} degree${Math.abs(n) === 1 ? '' : 's'}`;
 const hourOf = (label) => { const [, h, ap] = /^(\d+)(?::\d+)? (AM|PM)/.exec(label); return (Number(h) % 12) + (ap === 'PM' ? 12 : 0); };
 // Wind in the setting's unit (mph or km/h): light under 8 mph / 13 km/h, strong from 20 mph / 32 km/h.
-const wind = (v) => { const mph = CELSIUS ? v / 1.609 : v;
-  return mph < 8 ? 'Winds are light.' : mph < 20 ? `There is a breeze of ${numberWords(v)} ${UNITS.windWords}.`
-    : `Winds are strong, at ${numberWords(v)} ${UNITS.windWords}.`; };
+const wind = (v) => { const { celsius, units } = household(); const mph = celsius ? v / 1.609 : v;
+  return mph < 8 ? 'Winds are light.' : mph < 20 ? `There is a breeze of ${numberWords(v)} ${units.windWords}.`
+    : `Winds are strong, at ${numberWords(v)} ${units.windWords}.`; };
 // The lookup's words ("clear sky", "light rain") as a bulletin says them.
 const sky = (c) => (c === 'clear sky' ? 'clear skies' : c);
 const atPresent = (c) => (c === 'clear sky' ? 'under clear skies' : /^(mainly clear|partly cloudy|overcast)$/.test(c) ? `and ${c}` : `with ${c}`);
@@ -39,17 +39,18 @@ function spokenTime(h, m) {
 }
 
 // The bulletin text, from the weather lookup's data.
-export function bulletin(w) {
+export function bulletin(w, { local = false } = {}) {
   const town = w.location.split(',')[0];
   const [, hh, mm, ap] = /^(\d+):(\d+) (AM|PM)/.exec(w.local_time_there);
   const h = (Number(hh) % 12) + (ap === 'PM' ? 12 : 0); const m = Math.floor(Number(mm) / 5) * 5;
   // Tonight: the coming hours from 6 PM to 6 AM.
   const night = w.next_24_hours.filter((x) => { const k = hourOf(x.time); return k >= 18 || k < 7; }).slice(0, 13);
   const parts = [
-    // Open-Meteo serves forecast-model output, not an issued bulletin, so say the time there now (T-028).
-    `Here is the latest forecast for ${town}, where it is now ${spokenTime(h, m)}.`,
+    // Open-Meteo serves forecast-model output, not an issued bulletin (T-028); "accurate as of" stays true when a
+    // caller hears a voicing a few minutes later (Martin, T-029).
+    `Here is the latest forecast for ${town}, accurate as of ${spokenTime(h, m)}${local ? ', local time' : ''}.`,
     // The scale is named once, on the first temperature, as a forecaster would.
-    `At present it is ${deg(w.now.temperature)} ${UNITS.temperatureWord} ${atPresent(w.now.conditions)}. ${wind(w.now.wind_speed)}`,
+    `At present it is ${deg(w.now.temperature)} ${household().units.temperatureWord} ${atPresent(w.now.conditions)}. ${wind(w.now.wind_speed)}`,
   ];
   if (h < 15) parts.push(`For the rest of today, ${sky(w.today.conditions)}, with a high of ${deg(w.today.high)}${rain(w.today.chance_of_rain_percent)}.`);
   if (night.length) {
@@ -63,8 +64,8 @@ export function bulletin(w) {
 
 // The last voicing per place: { key: { text, pcm } } (16 kHz), reused while the words are the same.
 const cache = new Map();
-// The menu says the home location, so it is voiced live once and then kept.
-let menuPcm = null;
+// The menu says the home location, so it is voiced live and kept while its words stay the same: { text, pcm }.
+let menu = null;
 
 // Voices text in Charon's voice, sending audio to onChunk(pcm16k) as it arrives; resolves with all of it.
 async function voice(text, onChunk = () => {}) {
@@ -75,20 +76,20 @@ async function voice(text, onChunk = () => {}) {
     return Buffer.concat(parts);
   } finally { speaker.close?.(); }
 }
-const menuText = () => `For the forecast for your home location, ${HOME_NAME}, dial one. For another location, dial two.`;
+const menuText = () => `For the forecast for your home location, ${household().name}, dial one. For another location, dial two.`;
 // Voices the menu ahead of the first call (called when the exchange starts), so callers never wait for it.
 // Checked by transcription, since the voice sometimes misreads the home name ("Morrisville" came out as
 // "Mooresville", a real town nearby); up to three tries.
 export async function prepareWeatherLine() {
-  if (!HOME_NAME || menuPcm) return;
-  const town = HOME_TOWN.toLowerCase();
+  const { name, town } = household(); const text = menuText();
+  if (!name || menu?.text === text) return menu?.pcm;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const pcm = await voice(menuText());
-    const heard = await transcribe(pcm).catch(() => '');
-    if (heard.toLowerCase().includes(town) || attempt === 3) {
-      menuPcm = pcm;
-      console.log(`Weather menu voiced${heard.toLowerCase().includes(town) ? '' : ` (unchecked: heard "${heard}")`}`);
-      return;
+    const pcm = await voice(text);
+    const heard = (await transcribe(pcm).catch(() => '')).toLowerCase();
+    if (heard.includes(town.toLowerCase()) || attempt === 3) {
+      menu = { text, pcm };
+      console.log(`Weather menu voiced${heard.includes(town.toLowerCase()) ? '' : ` (unchecked: heard "${heard}")`}`);
+      return pcm;
     }
     console.log(`Weather menu: voice said "${heard}"; voicing again`);
   }
@@ -107,7 +108,7 @@ export function weatherCall({ out, clips, log = console.log }) {
     const key = place ? place.name : 'home';
     let pcm;
     try {
-      const text = bulletin(await getWeather(place ? { location: place.name } : {}));
+      const text = bulletin(await getWeather(place ? { location: place.name } : {}), { local: !!place });
       const kept = cache.get(key);
       if (kept?.text === text) {
         pcm = kept.pcm;
@@ -130,9 +131,10 @@ export function weatherCall({ out, clips, log = console.log }) {
   }
 
   // The menu, said twice if nothing is dialed (5 s to dial each time), then home by default.
-  async function menu(c) {
-    if (!HOME_NAME) { askPlace(c); return; }
-    try { menuPcm ??= await voice(menuText()); } catch (err) { log(`Weather menu failed: ${err.message}`); forecast(c, null); return; }
+  async function showMenu(c) {
+    if (!household().name) { askPlace(c); return; }
+    let menuPcm;
+    try { menuPcm = await prepareWeatherLine(); } catch (err) { log(`Weather menu failed: ${err.message}`); forecast(c, null); return; }
     for (let i = 0; i < 2 && stillOn(c); i++) {
       await out.play(menuPcm);
       for (let t = 0; t < 25 && stillOn(c); t++) await new Promise((r) => setTimeout(r, 200));
@@ -155,7 +157,7 @@ export function weatherCall({ out, clips, log = console.log }) {
       if (!stillOn(c)) return;
       if (place) { forecast(c, place); return; }
       await out.play(Buffer.concat([w['not-found'], silence(400, RATE)]));
-      if (tries < 1) askPlace(c, tries + 1); else menu(c);
+      if (tries < 1) askPlace(c, tries + 1); else showMenu(c);
     } });
     await out.play(Buffer.concat([w['ask-place'], silence(200, RATE)]));
     if (!stillOn(c)) return;
@@ -165,11 +167,11 @@ export function weatherCall({ out, clips, log = console.log }) {
     setTimeout(() => {
       if (!stillOn(c) || !waitingForPlace || listener?.forceEnd()) return;
       waitingForPlace = false; listener?.close(); listener = null;
-      if (tries < 1) askPlace(c, tries + 1); else menu(c);
+      if (tries < 1) askPlace(c, tries + 1); else showMenu(c);
     }, 10000);
   }
 
-  (async () => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (live) menu(choice); })();
+  (async () => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (live) showMenu(choice); })();
 
   return {
     // 1 home, 2 another place, * back to the menu (Martin, T-027), at any time.
@@ -178,7 +180,7 @@ export function weatherCall({ out, clips, log = console.log }) {
       choice++; waitingForPlace = false; listener?.close(); listener = null; out.clear();
       if (d === '1') forecast(choice, null);
       else if (d === '2') askPlace(choice);
-      else (async (c) => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (stillOn(c)) menu(c); })(choice);
+      else (async (c) => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (stillOn(c)) showMenu(c); })(choice);
     },
     onAudio(frame) { if (waitingForPlace && listener?.isSemanticLive()) listener.stream(frame); },
     hangUp() { live = false; waitingForPlace = false; listener?.close(); },

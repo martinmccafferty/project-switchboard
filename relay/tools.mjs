@@ -1,7 +1,7 @@
 // Operator tools: time and weather (M1), reminders and blinds (M4). Each tool = a definition Claude sees + a function the relay runs.
 import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
-import { HOME_TIMEZONE, UNITS, geocode, homePlace } from './home.mjs';
+import { household, geocode, homePlace } from './home.mjs';
 // Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
 // WMO weather codes -> plain words (https://open-meteo.com/en/docs)
@@ -15,7 +15,7 @@ const WEATHER_WORDS = {
   96: 'thunderstorms with hail', 99: 'thunderstorms with heavy hail',
 };
 
-export const toolDefinitions = [
+const baseTools = [
   {
     name: 'get_time',
     description: "Current local date and time at the caller's home (or another IANA time zone if asked).",
@@ -55,7 +55,7 @@ async function fetchJson(url) {
 }
 
 function getTime({ timezone } = {}) {
-  const zone = timezone || HOME_TIMEZONE;
+  const zone = timezone || household().timezone;
   const text = new Date().toLocaleString('en-US', {
     timeZone: zone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: 'numeric', minute: '2-digit',
@@ -66,12 +66,13 @@ function getTime({ timezone } = {}) {
 export async function getWeather({ location } = {}) {
   const place = location ? await geocode(location) : await homePlace();
   if (!place) return { error: `No place found called "${location}".` };
+  const { units } = household();
   const w = await fetchJson('https://api.open-meteo.com/v1/forecast'
     + `?latitude=${place.latitude}&longitude=${place.longitude}`
     + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m'
     + '&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=24'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
-    + `&temperature_unit=${UNITS.temperature}&wind_speed_unit=${UNITS.wind}&timezone=auto&forecast_days=2`);
+    + `&temperature_unit=${units.temperature}&wind_speed_unit=${units.wind}&timezone=auto&forecast_days=2`);
   // "2026-11-08T14:00" (already the place's local time) -> "2 PM Sunday"
   const label = (iso) => {
     const d = new Date(`${iso}:00Z`);
@@ -86,7 +87,7 @@ export async function getWeather({ location } = {}) {
   });
   return {
     location: place.name,
-    units: `temperatures in degrees ${UNITS.temperatureWord}, wind in ${UNITS.windWords}`,
+    units: `temperatures in degrees ${units.temperatureWord}, wind in ${units.windWords}`,
     local_time_there: label(w.current.time.slice(0, 13) + ':00').replace(/^(\d+) /, `$1:${w.current.time.slice(14, 16)} `),
     now: {
       conditions: WEATHER_WORDS[w.current.weather_code] ?? 'unknown',
@@ -105,7 +106,8 @@ export async function getWeather({ location } = {}) {
   };
 }
 
-toolDefinitions.push(...reminderTools, ...homeTools);
+// Read per request: the home tools follow the household's rooms in the settings.
+export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools()];
 const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.

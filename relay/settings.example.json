@@ -1,0 +1,63 @@
+{
+  "household": {
+    "location": "Springfield, Illinois",
+    "timezone": "America/Chicago",
+    "temperatureUnit": "fahrenheit",
+    "transcribeKeywords": [
+      "Alice",
+      "Bob"
+    ]
+  },
+  "home": {
+    "provider": "switchbot",
+    "layout": "The ground floor is one open room: the sitting room at the front and the kitchen at the back.",
+    "groups": [
+      {
+        "id": "sitting_room",
+        "name": "the sitting room blinds",
+        "where": "the two blinds at the front",
+        "callersSay": [
+          "the blinds",
+          "the sitting room blinds",
+          "the front blinds"
+        ],
+        "offerNext": [
+          "kitchen_curtains"
+        ],
+        "devices": [
+          {
+            "id": "SWITCHBOT-DEVICE-ID-1",
+            "name": "left sitting room blind",
+            "kind": "blind"
+          },
+          {
+            "id": "SWITCHBOT-DEVICE-ID-2",
+            "name": "right sitting room blind",
+            "kind": "blind"
+          }
+        ]
+      },
+      {
+        "id": "kitchen_curtains",
+        "name": "the kitchen curtains",
+        "where": "a pair of curtains on the back door",
+        "callersSay": [
+          "the kitchen curtains",
+          "the back curtains"
+        ],
+        "devices": [
+          {
+            "id": "SWITCHBOT-DEVICE-ID-3",
+            "name": "kitchen curtain (one half)",
+            "kind": "curtain"
+          },
+          {
+            "id": "SWITCHBOT-DEVICE-ID-4",
+            "name": "kitchen curtain (other half)",
+            "kind": "curtain"
+          }
+        ]
+      }
+    ]
+  }
+}

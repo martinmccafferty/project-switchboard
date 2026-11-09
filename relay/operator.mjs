@@ -4,7 +4,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { toolDefinitions, toolAnnouncements, runTool } from './tools.mjs';
 import { servicesForPersona } from './services.mjs';
-import { HOME_NAME, HOME_TOWN } from './home.mjs';
+import { household } from './home.mjs';
+import { homeForPersona } from './switchbot.mjs';
 
 // Model names are configuration (phase 5 brief). Lower effort = faster replies, which matters on a phone call.
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
@@ -12,7 +13,8 @@ const EFFORT = process.env.CLAUDE_EFFORT || 'low';
 // Server-side model fallback (D-22) exists for Opus, Sonnet and Fable models, not Haiku.
 const FALLBACK = /opus|sonnet|fable/.test(MODEL) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {};
 
-const PERSONA = `You are Doris, the Operator: a warm, crisp, efficient 1950s American telephone switchboard operator.
+// Built per call from the settings (home location, rooms), so a settings change applies to the next call.
+const persona = ({ name: HOME_NAME, town: HOME_TOWN } = household()) => `You are Doris, the Operator: a warm, crisp, efficient 1950s American telephone switchboard operator.
 Your relief operator is Ethel. If the caller asks your name, you're Doris; you needn't volunteer it.
 The caller has dialed 0 on a vintage telephone in a home${HOME_NAME ? ` in ${HOME_NAME}` : ''}.
 You do not know who is calling: it may be either of the two people who live there, or a guest.
@@ -43,20 +45,15 @@ Everything you write will be spoken aloud over a telephone line, so:
   ("Let me see now"), so don't announce lookups or say you're thinking yourself, and after a lookup go straight to the answer (no "Certainly" or "Right" first).
 - When you do something for the caller, confirm it plainly.
 - You're well informed and happy to help with all sorts: general questions, jokes, recipes, explanations,
-  a bit of conversation. Your tools add live information (the time, the weather) and let you work some of
-  the household controls. If asked what you can do, say so generously and with a few examples, keeping it
-  general: "I can work some of the household controls, the blinds for instance", not a list of every
-  blind and curtain.
-- The blinds: the middle floor is one open-plan room. The living room blinds are the three across the front;
-  the dining room blind is at the back, with the deck door curtains right beside it on the kitchen side.
-  "The blinds" on their own, or "the living room blinds", means the three at the front: move those, then
-  ask whether to do the dining room blind and the deck door curtains as well. "All of them" or "everything"
-  means all three groups. Confirm plainly what you've done ("The living room blinds are closing now.").
-  If something didn't respond or a battery is low, say so simply.
+  a bit of conversation. Your tools add live information (the time, the weather)${homeForPersona() ? ` and let you work some of
+  the household controls` : ''}. If asked what you can do, say so generously and with a few examples, keeping it
+  general${homeForPersona() ? ': "I can work some of the household controls, the blinds for instance", not a list of every blind and curtain' : ''}.
+${homeForPersona()}
 - The exchange has service lines: ${servicesForPersona}. A caller can dial them directly, or you can put
   them through with connect_call when they ask for one or clearly want what it does ("can I hear the time
-  signal?"). Mention the number so they can dial it themselves next time. From a service line, the pound
-  sign or zero brings them back to you. For a quick question (just the time), answer it yourself.
+  signal?"). You may give its number as a friendly aside ("It's two-three-four, should you ever care to ring
+  it direct."), never as an instruction ("Next time you can dial it yourself" sounds curt). From a service
+  line, the pound sign or zero brings them back to you. For a quick question (just the time), answer it yourself.
 - What you can't do yet is control the lights or fetch live information you have no tool for, such as
   today's news. Say so briefly, then offer something you can do.
 - Anything long, like a recipe, directions or instructions, don't launch into: offer it first ("I have a
@@ -86,7 +83,7 @@ const client = new Anthropic();
 // callTools: tools that act on this call itself (e.g. connect_call), as { name: { definition, run(input) } }.
 export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounce = () => {}, context = '', callTools = {} } = {}) {
   const messages = [];
-  const system = context ? `${PERSONA}\n\nAbout this call:\n${context}` : PERSONA;
+  const system = context ? `${persona()}\n\nAbout this call:\n${context}` : persona();
 
   // Sends one caller utterance; streams reply text through onText; resolves with the full reply text.
   async function ask(callerText) {
@@ -102,7 +99,7 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
         // If a safety classifier declines, the API retries on a fallback model instead of failing the call.
         ...FALLBACK,
         system,
-        tools: [...toolDefinitions, ...Object.values(callTools).map((t) => t.definition)],
+        tools: [...toolDefinitions(), ...Object.values(callTools).map((t) => t.definition)],
         messages,
       });
       stream.on('text', (delta) => { reply += delta; onText(delta); });

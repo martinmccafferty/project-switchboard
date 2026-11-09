@@ -15,7 +15,8 @@ export const serviceNumbers = SERVICES.map((s) => s.number);
 export const connectTool = {
   name: 'connect_call',
   description: 'Put the caller through to one of the exchange\'s service lines. The switchboard says "Right away." '
-    + 'for you, so don\'t; after the tool, say a short line ("Putting you through to the speaking clock now.") and '
+    + 'for you, so don\'t; after the tool, say a short line ("Putting you through to the speaking clock now.", perhaps with the number as a '
+    + 'friendly aside) and '
     + 'the call is handed over as soon as you finish speaking, so say nothing after it. '
     + ` Lines: ${SERVICES.map((s) => `${s.id} (dial ${s.number}): ${s.about}`).join('; ')}.`,
   input_schema: {

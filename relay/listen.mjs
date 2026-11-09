@@ -8,7 +8,7 @@
 import OpenAI, { toFile } from 'openai';
 import { OpenAIRealtimeWS } from 'openai/realtime/ws';
 import { StreamResampler, wavBuffer } from './audio.mjs';
-import { HOME_NAME } from './home.mjs';
+import { household } from './home.mjs';
 
 const FILE_MODEL = process.env.OPENAI_STT_MODEL || 'gpt-transcribe';
 const TURN_DETECTION = process.env.TURN_DETECTION || 'semantic';   // 'semantic' | 'local'
@@ -19,16 +19,18 @@ const LINE_RATE = 16000;
 const LIVE_RATE = 24000;           // the Realtime API takes 24 kHz PCM
 const RESULT_TIMEOUT_MS = 4000;    // local mode: after this, use the file fallback
 // Words the transcriber should expect (T-019: "Greenock" came through as "Greenup"): the switchboard's own names,
-// the home town, and a household's own list in TRANSCRIBE_KEYWORDS="Andy,Greenock" (.env).
-const KEYWORDS = ['Doris', 'Ethel', 'Mrs. Pruitt', 'Buttons', 'operator', 'switchboard', 'limerick',
-  ...HOME_NAME.split(',').map((k) => k.trim()).filter(Boolean),
-  ...(process.env.TRANSCRIBE_KEYWORDS || '').split(',').map((k) => k.trim()).filter(Boolean)];
+// the home location, and the household's own list (settings: household.transcribeKeywords). Read per call.
+const keywords = () => {
+  const h = household();
+  return ['Doris', 'Ethel', 'Mrs. Pruitt', 'Buttons', 'operator', 'switchboard', 'limerick',
+    ...h.name.split(',').map((k) => k.trim()).filter(Boolean), ...h.keywords];
+};
 const openai = new OpenAI();
 
 async function transcribeFile(pcm) {
   const { text } = await openai.audio.transcriptions.create({
     file: await toFile(wavBuffer(pcm, LINE_RATE), 'caller.wav'),
-    model: FILE_MODEL, prompt: `A caller speaking to Doris, a telephone switchboard operator. Names that may come up: ${KEYWORDS.join(', ')}.`,
+    model: FILE_MODEL, prompt: `A caller speaking to Doris, a telephone switchboard operator. Names that may come up: ${keywords().join(', ')}.`,
   });
   return text;
 }
@@ -52,7 +54,7 @@ export function createListener({ onTurn = () => {} } = {}) {
           type: 'transcription',
           audio: { input: {
             format: { type: 'audio/pcm', rate: LIVE_RATE },
-            transcription: { model: LIVE_MODEL, language: 'en', keywords: KEYWORDS },
+            transcription: { model: LIVE_MODEL, language: 'en', keywords: keywords() },
             turn_detection: semantic ? { type: 'semantic_vad', eagerness: EAGERNESS } : null,
           } },
         },

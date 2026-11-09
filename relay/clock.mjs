@@ -7,7 +7,7 @@ import { silence } from './audio.mjs';
 import { numberWords as words, renderPieces } from './servicevoice.mjs';
 
 const RATE = 16000;
-import { HOME_TIMEZONE as TZ } from './home.mjs'; // the home's time, not the server's (Railway runs on UTC)
+import { household } from './home.mjs'; // the home's time, not the server's (Railway runs on UTC)
 // Audio reaches the ear a little after it is scheduled (send lead + the phone's playout buffer), so the pips are
 // sent this much early. Re-tune after the move to Railway and again on the real phone.
 const LATENCY_MS = Number(process.env.CLOCK_LATENCY_MS ?? 150);
@@ -30,7 +30,7 @@ const STROKES_BETWEEN_HINTS = 3;
 
 // The home time at an instant, as clip names.
 function sayTime(ms) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h12', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: household().timezone, hourCycle: 'h12', hour: 'numeric', minute: 'numeric', second: 'numeric' })
     .formatToParts(new Date(ms)).map((x) => [x.type, Number(x.value)]));
   const sec = Math.round(p.second / 10) * 10;
   return ['prefix', `h${p.hour}`, p.minute ? `m${p.minute}` : 'oclock', sec ? `s${sec}` : 'precisely'];

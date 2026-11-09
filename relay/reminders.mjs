@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const FILE = process.env.REMINDERS_FILE || 'data/reminders.json';
-import { HOME_TIMEZONE as TZ } from './home.mjs';
+import { household } from './home.mjs';
 const RETRY_MS = Number(process.env.REMINDER_RETRY_MS) || 5 * 60 * 1000; // unanswered: try again after 5 minutes...
 const MAX_ATTEMPTS = 3;           // ...up to 3 rings in all, then it's "missed" and Doris mentions it next call
 
@@ -20,7 +20,7 @@ function save() {
 // --- Home-time helpers (no libraries): "2026-11-08T17:00" in the home time zone <-> an instant.
 function zoneOffsetMs(utcMs) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
-    timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: household().timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
   }).formatToParts(new Date(utcMs)).map((p) => [p.type, Number(p.value)]));
   return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - utcMs;
 }
@@ -32,7 +32,7 @@ function homeTimeToInstant(local) {
   return asUtc - zoneOffsetMs(first); // second pass gets daylight-saving changeovers right
 }
 export const sayWhen = (ms) => new Date(ms).toLocaleString('en-US', {
-  timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  timeZone: household().timezone, weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
 });
 
 // --- Tools for Doris.
