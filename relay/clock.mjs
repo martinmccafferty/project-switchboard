@@ -7,7 +7,7 @@ import { silence } from './audio.mjs';
 import { numberWords as words, renderPieces } from './servicevoice.mjs';
 
 const RATE = 16000;
-const TZ = process.env.HOME_TIMEZONE || 'America/New_York'; // the home's time, not the server's (Railway runs on UTC)
+import { HOME_TIMEZONE as TZ } from './home.mjs'; // the home's time, not the server's (Railway runs on UTC)
 // Audio reaches the ear a little after it is scheduled (send lead + the phone's playout buffer), so the pips are
 // sent this much early. Re-tune after the move to Railway and again on the real phone.
 const LATENCY_MS = Number(process.env.CLOCK_LATENCY_MS ?? 150);

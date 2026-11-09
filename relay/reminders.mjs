@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const FILE = process.env.REMINDERS_FILE || 'data/reminders.json';
-const TZ = process.env.HOME_TIMEZONE || 'America/New_York';
+import { HOME_TIMEZONE as TZ } from './home.mjs';
 const RETRY_MS = Number(process.env.REMINDER_RETRY_MS) || 5 * 60 * 1000; // unanswered: try again after 5 minutes...
 const MAX_ATTEMPTS = 3;           // ...up to 3 rings in all, then it's "missed" and Doris mentions it next call
 

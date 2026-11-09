@@ -11,7 +11,7 @@ import { WebSocketServer } from 'ws';
 import { wavToPcm, plugClick, silence } from './audio.mjs';
 import { operatorCall } from './call-operator.mjs';
 import { speakingClock } from './clock.mjs';
-import { weatherLine } from './weatherline.mjs';
+import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
@@ -26,8 +26,8 @@ const KNOWN_NUMBERS = new Set([...serviceNumbers, '911']);                    //
 const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
-const SWITCHING_MS = 500;
-const SERVICE_LINES = new Set(['clock', 'weather']); // lines that # or 0 leaves for the operator                  // the exchange's beat of silence before connecting a dialed number (not 0)
+const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
+const SERVICE_LINES = new Set(['clock', 'weather']); // lines that # or 0 leaves for the operator
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -140,10 +140,8 @@ function phoneLine(ws, from) {
       speakingClock({ out, clips, isLive: () => id === lineId && connectedTo === 'clock' })
         .catch((err) => console.log(`Speaking clock failed: ${err.message}`));
     } else if (number === '234') {
-      connectedTo = 'weather'; status('Weather line (# for the operator)');
-      const id = lineId;
-      weatherLine({ out, clips, isLive: () => id === lineId && connectedTo === 'weather' })
-        .catch((err) => console.log(`Weather line failed: ${err.message}`));
+      connectedTo = 'weather'; status('Weather line: 1 home, 2 elsewhere, # operator');
+      call = weatherCall({ out, clips, log: (t) => status(t) });
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -163,8 +161,10 @@ function phoneLine(ws, from) {
   function onDigit(d) {
     // # on a service line (or 0, out of habit): back to the operator (D-27).
     if (state === 'connected' && (d === '#' || d === '0') && SERVICE_LINES.has(connectedTo)) {
+      call?.hangUp(); call = null;
       lineId++; out.clear(); connectedTo = null; digits = '0'; status('Back to the operator'); connect('0'); return;
     }
+    if (state === 'connected' && connectedTo === 'weather') { call?.onDigit(d); return; }
     if (state === 'offhook') { state = 'dialing'; out.setTone(null); }
     if (state !== 'dialing') return;
     digits += d; status(`Dialed ${digits}`);
@@ -183,7 +183,7 @@ function phoneLine(ws, from) {
     if (isBinary) {
       if (data.length !== FRAME_BYTES) return;
       if (connectedTo === 'echo') out.play(Buffer.from(data));
-      else if (connectedTo === 'operator') call?.onAudio(Buffer.from(data));
+      else if (connectedTo === 'operator' || connectedTo === 'weather') call?.onAudio(Buffer.from(data));
       return;
     }
     let msg; try { msg = JSON.parse(data.toString()); } catch { return; }
@@ -251,6 +251,7 @@ wss.on('connection', (ws, req) => {
   phoneLine(ws, from);
 });
 server.listen(PORT, () => {
+  prepareWeatherLine().catch((err) => console.log(`Weather menu not voiced yet (${err.message}); first caller will wait`));
   const lan = Object.values(os.networkInterfaces()).flat().filter((a) => a?.family === 'IPv4' && !a.internal).map((a) => a.address);
   console.log(`Switchboard listening on port ${PORT}`);
   console.log(`  Softphone: http://localhost:${PORT}   (phones on the network: ws://${lan[0] ?? 'this-mac'}:${PORT}/phone)`);

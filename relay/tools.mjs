@@ -1,14 +1,8 @@
 // Operator tools: time and weather (M1), reminders and blinds (M4). Each tool = a definition Claude sees + a function the relay runs.
 import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
-// Weather uses Open-Meteo (free, no API key). Default location: Morrisville, NC.
-
-export const HOME = {
-  name: process.env.HOME_LOCATION_NAME || 'Morrisville, North Carolina',
-  latitude: Number(process.env.HOME_LATITUDE) || 35.8235,
-  longitude: Number(process.env.HOME_LONGITUDE) || -78.8256,
-  timezone: process.env.HOME_TIMEZONE || 'America/New_York',
-};
+import { HOME_TIMEZONE, geocode, homePlace } from './home.mjs';
+// Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
 // WMO weather codes -> plain words (https://open-meteo.com/en/docs)
 const WEATHER_WORDS = {
@@ -61,7 +55,7 @@ async function fetchJson(url) {
 }
 
 function getTime({ timezone } = {}) {
-  const zone = timezone || HOME.timezone;
+  const zone = timezone || HOME_TIMEZONE;
   const text = new Date().toLocaleString('en-US', {
     timeZone: zone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: 'numeric', minute: '2-digit',
@@ -70,15 +64,8 @@ function getTime({ timezone } = {}) {
 }
 
 export async function getWeather({ location } = {}) {
-  let place = HOME;
-  if (location) {
-    const geo = await fetchJson(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`);
-    const hit = geo.results?.[0];
-    if (!hit) return { error: `No place found called "${location}".` };
-    place = { name: [hit.name, hit.admin1, hit.country].filter(Boolean).join(', '),
-      latitude: hit.latitude, longitude: hit.longitude };
-  }
+  const place = location ? await geocode(location) : await homePlace();
+  if (!place) return { error: `No place found called "${location}".` };
   const w = await fetchJson('https://api.open-meteo.com/v1/forecast'
     + `?latitude=${place.latitude}&longitude=${place.longitude}`
     + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m'

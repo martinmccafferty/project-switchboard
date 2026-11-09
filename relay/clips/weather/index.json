@@ -1,4 +1,7 @@
 {
   "intro": "This is the weather bureau.",
-  "unavailable": "I'm sorry, the weather report is not available just now."
+  "unavailable": "I'm sorry, the weather report is not available just now.",
+  "ask-place": "Please say the name of the town or city, and the state or country.",
+  "one-moment": "Thank you. One moment, please.",
+  "not-found": "I'm sorry, I couldn't find that place."
 }

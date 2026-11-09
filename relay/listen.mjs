@@ -8,6 +8,7 @@
 import OpenAI, { toFile } from 'openai';
 import { OpenAIRealtimeWS } from 'openai/realtime/ws';
 import { StreamResampler, wavBuffer } from './audio.mjs';
+import { HOME_NAME } from './home.mjs';
 
 const FILE_MODEL = process.env.OPENAI_STT_MODEL || 'gpt-transcribe';
 const TURN_DETECTION = process.env.TURN_DETECTION || 'semantic';   // 'semantic' | 'local'
@@ -17,9 +18,10 @@ const EAGERNESS = process.env.TURN_EAGERNESS || 'high';            // semantic: 
 const LINE_RATE = 16000;
 const LIVE_RATE = 24000;           // the Realtime API takes 24 kHz PCM
 const RESULT_TIMEOUT_MS = 4000;    // local mode: after this, use the file fallback
-// Words the transcriber should expect (T-019: "Greenock" came through as "Greenup"). Add more with TRANSCRIBE_KEYWORDS="a,b".
-const KEYWORDS = ['Doris', 'Ethel', 'Mrs. Pruitt', 'Buttons', 'operator', 'switchboard', 'Morrisville', 'Raleigh', 'Cary',
-  'North Carolina', 'Scotland', 'Greenock', 'Glasgow', 'Edinburgh', 'Martin', 'Andy', 'limerick',
+// Words the transcriber should expect (T-019: "Greenock" came through as "Greenup"): the switchboard's own names,
+// the home town, and a household's own list in TRANSCRIBE_KEYWORDS="Andy,Greenock" (.env).
+const KEYWORDS = ['Doris', 'Ethel', 'Mrs. Pruitt', 'Buttons', 'operator', 'switchboard', 'limerick',
+  ...HOME_NAME.split(',').map((k) => k.trim()).filter(Boolean),
   ...(process.env.TRANSCRIBE_KEYWORDS || '').split(',').map((k) => k.trim()).filter(Boolean)];
 const openai = new OpenAI();
 
