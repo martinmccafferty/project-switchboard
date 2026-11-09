@@ -21,6 +21,14 @@ export async function serviceSpeaker(style, options = {}) {
   return engines[SERVICE_VOICE.engine]({ voice: SERVICE_VOICE.voice, style, ...options });
 }
 
+// What a transcriber hears in 16 kHz audio (to check a live-voiced line says what it should).
+export async function transcribe(pcm16k) {
+  const OpenAI = (await import('openai')).default; const { toFile } = await import('openai');
+  const { wavBuffer } = await import('./audio.mjs');
+  const { text } = await new OpenAI().audio.transcriptions.create({ file: await toFile(wavBuffer(pcm16k, RATE), 'check.wav'), model: 'gpt-transcribe' });
+  return text;
+}
+
 // Renders stored clips ({ name: text }) into dir as 16 kHz WAVs, each transcribed to check it says exactly its
 // words (up to 3 tries), with the engine's leading and trailing silence trimmed so pieces join tightly.
 // Only clips that are missing or whose words changed are rendered, unless all is true.

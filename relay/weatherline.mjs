@@ -4,9 +4,9 @@
 // Bulletins come from the weather lookup Doris uses (no Claude), voiced live, and are kept 15 minutes per place.
 // Stored clips:  node --env-file=.env weatherline.mjs      Today's home bulletin text:  ... weatherline.mjs --text
 import { getWeather } from './tools.mjs';
-import { geocode, HOME_NAME, UNITS, CELSIUS } from './home.mjs';
+import { geocode, HOME_NAME, HOME_TOWN, UNITS, CELSIUS } from './home.mjs';
 import { createListener } from './listen.mjs';
-import { numberWords, serviceSpeaker, renderPieces } from './servicevoice.mjs';
+import { numberWords, serviceSpeaker, renderPieces, transcribe } from './servicevoice.mjs';
 import { StreamResampler, silence } from './audio.mjs';
 import { SAMPLE_RATE } from './voices.mjs';
 
@@ -76,7 +76,22 @@ async function voice(text, onChunk = () => {}) {
 }
 const menuText = () => `For the forecast for your home location, ${HOME_NAME}, dial one. For another location, dial two.`;
 // Voices the menu ahead of the first call (called when the exchange starts), so callers never wait for it.
-export async function prepareWeatherLine() { if (HOME_NAME && !menuPcm) menuPcm = await voice(menuText()); }
+// Checked by transcription, since the voice sometimes misreads the home name ("Morrisville" came out as
+// "Mooresville", a real town nearby); up to three tries.
+export async function prepareWeatherLine() {
+  if (!HOME_NAME || menuPcm) return;
+  const town = HOME_TOWN.toLowerCase();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const pcm = await voice(menuText());
+    const heard = await transcribe(pcm).catch(() => '');
+    if (heard.toLowerCase().includes(town) || attempt === 3) {
+      menuPcm = pcm;
+      console.log(`Weather menu voiced${heard.toLowerCase().includes(town) ? '' : ` (unchecked: heard "${heard}")`}`);
+      return;
+    }
+    console.log(`Weather menu: voice said "${heard}"; voicing again`);
+  }
+}
 
 // One call to the weather line: { onDigit, onAudio, hangUp }. The exchange passes digits other than # and 0.
 export function weatherCall({ out, clips, log = console.log }) {
