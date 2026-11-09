@@ -4,7 +4,7 @@
 // Bulletins come from the weather lookup Doris uses (no Claude), voiced live, and are kept 15 minutes per place.
 // Stored clips:  node --env-file=.env weatherline.mjs      Today's home bulletin text:  ... weatherline.mjs --text
 import { getWeather } from './tools.mjs';
-import { geocode, HOME_NAME } from './home.mjs';
+import { geocode, HOME_NAME, UNITS, CELSIUS } from './home.mjs';
 import { createListener } from './listen.mjs';
 import { numberWords, serviceSpeaker, renderPieces } from './servicevoice.mjs';
 import { StreamResampler, silence } from './audio.mjs';
@@ -19,12 +19,15 @@ export const PIECES = {
   'ask-place': 'Please say the name of the town or city, and the state or country.',
   'one-moment': 'Thank you. One moment, please.',
   'not-found': "I'm sorry, I couldn't find that place.",
+  'star-hint': 'Alternatively, dial star to return to the weather bureau menu and choose your home or another city.',
 };
 
 const deg = (n) => `${numberWords(n)} degree${Math.abs(n) === 1 ? '' : 's'}`;
 const hourOf = (label) => { const [, h, ap] = /^(\d+)(?::\d+)? (AM|PM)/.exec(label); return (Number(h) % 12) + (ap === 'PM' ? 12 : 0); };
-const wind = (mph) => (mph < 8 ? 'Winds are light.' : mph < 20 ? `There is a breeze of ${numberWords(mph)} miles an hour.`
-  : `Winds are strong, at ${numberWords(mph)} miles an hour.`);
+// Wind in the setting's unit (mph or km/h): light under 8 mph / 13 km/h, strong from 20 mph / 32 km/h.
+const wind = (v) => { const mph = CELSIUS ? v / 1.609 : v;
+  return mph < 8 ? 'Winds are light.' : mph < 20 ? `There is a breeze of ${numberWords(v)} ${UNITS.windWords}.`
+    : `Winds are strong, at ${numberWords(v)} ${UNITS.windWords}.`; };
 // The lookup's words ("clear sky", "light rain") as a bulletin says them.
 const sky = (c) => (c === 'clear sky' ? 'clear skies' : c);
 const atPresent = (c) => (c === 'clear sky' ? 'under clear skies' : /^(mainly clear|partly cloudy|overcast)$/.test(c) ? `and ${c}` : `with ${c}`);
@@ -44,14 +47,15 @@ export function bulletin(w, { home = true } = {}) {
   const night = w.next_24_hours.filter((x) => { const k = hourOf(x.time); return k >= 18 || k < 7; }).slice(0, 13);
   const parts = [
     `Here is the forecast for ${town}, issued at ${spokenTime(h, m)}${home ? '' : ' local time'}.`,
-    `At present it is ${deg(w.now.temperature_f)} ${atPresent(w.now.conditions)}. ${wind(w.now.wind_mph)}`,
+    // The scale is named once, on the first temperature, as a forecaster would.
+    `At present it is ${deg(w.now.temperature)} ${UNITS.temperatureWord} ${atPresent(w.now.conditions)}. ${wind(w.now.wind_speed)}`,
   ];
-  if (h < 15) parts.push(`For the rest of today, ${sky(w.today.conditions)}, with a high of ${deg(w.today.high_f)}${rain(w.today.chance_of_rain_percent)}.`);
+  if (h < 15) parts.push(`For the rest of today, ${sky(w.today.conditions)}, with a high of ${deg(w.today.high)}${rain(w.today.chance_of_rain_percent)}.`);
   if (night.length) {
-    parts.push(`Tonight, ${sky(mostCommon(night.map((x) => x.conditions)))}, with a low near ${deg(Math.min(...night.map((x) => x.temperature_f)))}`
+    parts.push(`Tonight, ${sky(mostCommon(night.map((x) => x.conditions)))}, with a low near ${deg(Math.min(...night.map((x) => x.temperature)))}`
       + `${rain(Math.max(...night.map((x) => x.chance_of_rain_percent ?? 0)))}.`);
   }
-  parts.push(`Tomorrow, ${sky(w.tomorrow.conditions)}, with a high of ${deg(w.tomorrow.high_f)} and a low of ${deg(w.tomorrow.low_f)}`
+  parts.push(`Tomorrow, ${sky(w.tomorrow.conditions)}, with a high of ${deg(w.tomorrow.high)} and a low of ${deg(w.tomorrow.low)}`
     + `${rain(w.tomorrow.chance_of_rain_percent)}.`, 'That is the end of the forecast.');
   return parts.join(' ');
 }
@@ -98,7 +102,10 @@ export function weatherCall({ out, clips, log = console.log }) {
       if (stillOn(c)) await out.play(Buffer.concat([w.unavailable, silence(700, RATE), hint]));
       return;
     }
-    while (stillOn(c)) await out.play(Buffer.concat([silence(1200, RATE), hint, silence(1500, RATE), w.intro, silence(400, RATE), pcm]));
+    while (stillOn(c)) {
+      await out.play(Buffer.concat([silence(1200, RATE), hint, silence(300, RATE), w['star-hint'], silence(1500, RATE),
+        w.intro, silence(400, RATE), pcm]));
+    }
   }
 
   // The menu, said twice if nothing is dialed (5 s to dial each time), then home by default.
@@ -144,10 +151,13 @@ export function weatherCall({ out, clips, log = console.log }) {
   (async () => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (live) menu(choice); })();
 
   return {
+    // 1 home, 2 another place, * back to the menu (Martin, T-027), at any time.
     onDigit(d) {
-      if (d !== '1' && d !== '2') return;
+      if (!['1', '2', '*'].includes(d)) return;
       choice++; waitingForPlace = false; listener?.close(); listener = null; out.clear();
-      if (d === '1') forecast(choice, null); else askPlace(choice);
+      if (d === '1') forecast(choice, null);
+      else if (d === '2') askPlace(choice);
+      else (async (c) => { await out.play(Buffer.concat([w.intro, silence(400, RATE)])); if (stillOn(c)) menu(c); })(choice);
     },
     onAudio(frame) { if (waitingForPlace && listener?.isSemanticLive()) listener.stream(frame); },
     hangUp() { live = false; waitingForPlace = false; listener?.close(); },

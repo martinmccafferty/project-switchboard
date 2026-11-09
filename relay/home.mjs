@@ -1,10 +1,15 @@
 // The household's settings (D-35), so nothing about one home is written into the code:
 //   HOME_LOCATION   where home is, as a person would say it: "Morrisville, North Carolina"
 //   HOME_TIMEZONE   e.g. America/New_York (needed on Railway, whose servers run on UTC)
+//   TEMPERATURE_UNIT  fahrenheit (default) or celsius; wind speed follows (mph or km/h)
 // The relay looks the place up itself (Open-Meteo geocoding, free, no key); HOME_LATITUDE/HOME_LONGITUDE override.
 export const HOME_NAME = (process.env.HOME_LOCATION || process.env.HOME_LOCATION_NAME || '').trim();
 export const HOME_TOWN = HOME_NAME.split(',')[0].trim();
 export const HOME_TIMEZONE = process.env.HOME_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const CELSIUS = /^c/i.test(process.env.TEMPERATURE_UNIT || '');
+export const UNITS = CELSIUS
+  ? { temperature: 'celsius', wind: 'kmh', temperatureWord: 'Celsius', windWords: 'kilometers an hour' }
+  : { temperature: 'fahrenheit', wind: 'mph', temperatureWord: 'Fahrenheit', windWords: 'miles an hour' };
 
 const US_STATES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
   CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois',
@@ -15,11 +20,27 @@ const US_STATES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', 
   RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah',
   VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia' };
 
-// "Portland, Oregon" / "Portland, OR" / "Paris, France" / "Greenock" -> { name, latitude, longitude, timezone },
-// or null. The search takes a bare place name, so the rest ("Oregon") picks among the matches.
+// "Portland, Oregon" / "Portland, OR" / "Glasgow in Scotland" / "Portland Oregon" / "Paris, France" / "Greenock"
+// -> { name, latitude, longitude, timezone }, or null. The search takes a bare place name, so anything after it
+// (a state, region or country) picks among the matches.
 export async function geocode(query) {
-  const [place, ...rest] = query.split(',').map((s) => s.trim()).filter(Boolean);
-  if (!place) return null;
+  const said = query.trim().replace(/[.?!]+$/, '')
+    .replace(/^(?:(?:the )?(?:weather|forecast) (?:for|in) |(?:for|in) )/i, '').replace(/,? please$/i, '');
+  // "Glasgow in Scotland" means "Glasgow, Scotland".
+  const parts = said.split(/\s*,\s*|\s+in\s+/i).filter(Boolean);
+  if (!parts.length) return null;
+  const found = await lookup(parts[0], parts.slice(1));
+  if (found || parts.length > 1) return found;
+  // No comma: "Portland Oregon" / "Glasgow Scotland": try the first words as the place and the rest as where.
+  const words = parts[0].split(/\s+/);
+  for (let k = words.length - 1; k >= 1; k--) {
+    const hit = await lookup(words.slice(0, k).join(' '), [words.slice(k).join(' ')]);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+async function lookup(place, rest) {
   const want = rest.map((q) => (US_STATES[q.toUpperCase()] ?? q).toLowerCase());
   const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=10`,
     { signal: AbortSignal.timeout(8000) });

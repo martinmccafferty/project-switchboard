@@ -1,7 +1,7 @@
 // Operator tools: time and weather (M1), reminders and blinds (M4). Each tool = a definition Claude sees + a function the relay runs.
 import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
-import { HOME_TIMEZONE, geocode, homePlace } from './home.mjs';
+import { HOME_TIMEZONE, UNITS, geocode, homePlace } from './home.mjs';
 // Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
 // WMO weather codes -> plain words (https://open-meteo.com/en/docs)
@@ -71,7 +71,7 @@ export async function getWeather({ location } = {}) {
     + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m'
     + '&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=24'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
-    + '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=2');
+    + `&temperature_unit=${UNITS.temperature}&wind_speed_unit=${UNITS.wind}&timezone=auto&forecast_days=2`);
   // "2026-11-08T14:00" (already the place's local time) -> "2 PM Sunday"
   const label = (iso) => {
     const d = new Date(`${iso}:00Z`);
@@ -80,22 +80,23 @@ export async function getWeather({ location } = {}) {
   };
   const day = (i) => ({
     conditions: WEATHER_WORDS[w.daily.weather_code[i]] ?? 'unknown',
-    high_f: Math.round(w.daily.temperature_2m_max[i]),
-    low_f: Math.round(w.daily.temperature_2m_min[i]),
+    high: Math.round(w.daily.temperature_2m_max[i]),
+    low: Math.round(w.daily.temperature_2m_min[i]),
     chance_of_rain_percent: w.daily.precipitation_probability_max[i],
   });
   return {
     location: place.name,
+    units: `temperatures in degrees ${UNITS.temperatureWord}, wind in ${UNITS.windWords}`,
     local_time_there: label(w.current.time.slice(0, 13) + ':00').replace(/^(\d+) /, `$1:${w.current.time.slice(14, 16)} `),
     now: {
       conditions: WEATHER_WORDS[w.current.weather_code] ?? 'unknown',
-      temperature_f: Math.round(w.current.temperature_2m),
-      feels_like_f: Math.round(w.current.apparent_temperature),
-      wind_mph: Math.round(w.current.wind_speed_10m),
+      temperature: Math.round(w.current.temperature_2m),
+      feels_like: Math.round(w.current.apparent_temperature),
+      wind_speed: Math.round(w.current.wind_speed_10m),
     },
     next_24_hours: w.hourly.time.map((t, i) => ({
       time: label(t),
-      temperature_f: Math.round(w.hourly.temperature_2m[i]),
+      temperature: Math.round(w.hourly.temperature_2m[i]),
       conditions: WEATHER_WORDS[w.hourly.weather_code[i]] ?? 'unknown',
       chance_of_rain_percent: w.hourly.precipitation_probability[i],
     })),
