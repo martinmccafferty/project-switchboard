@@ -5,6 +5,7 @@ import { createOperator } from './operator.mjs';
 import { operatorSpeaker, SAMPLE_RATE } from './voices.mjs';
 import { StreamResampler, waitingCue, plugClick } from './audio.mjs';
 import { createListener } from './listen.mjs';
+import { SERVICES, connectTool } from './services.mjs';
 
 const RATE = 16000;
 const END_SILENCE_MS = Number(process.env.END_SILENCE_MS) || 800; // quiet that ends the caller's turn
@@ -67,7 +68,9 @@ class TurnDetector {
 // opening: { text, context } for a call Doris starts herself (delivering a reminder): she says `text` in her
 // live voice instead of the greeting clip, and `context` tells Claude what's going on.
 import { takeMissed } from './reminders.mjs';
-export function operatorCall({ out, clips, status, opening = null }) {
+// onTransfer(number): Doris has put the caller through to a service line; the exchange takes over the call.
+export function operatorCall({ out, clips, status, opening = null, onTransfer = () => {} }) {
+  let transferTo = null; // set by connect_call; acted on once Doris has finished speaking
   let active = true; let listening = false;
   // When the caller was last audibly speaking (measured here, for timing what the caller actually waits).
   let lastVoicedAt = 0; let floorDb = -60;
@@ -79,7 +82,13 @@ export function operatorCall({ out, clips, status, opening = null }) {
   const context = opening?.context ?? (missed.length
     ? `These reminders rang while nobody answered. Mention them briefly early in this call: ${missed.map((m) => `"${m.message}" (due ${m.was_due})`).join('; ')}.`
     : '');
-  const operator = createOperator({ context, onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
+  const callTools = { connect_call: { definition: connectTool, run: ({ service }) => {
+    const line = SERVICES.find((x) => x.id === service);
+    if (!line) return { error: `No service ${service}` };
+    transferTo = line.number;
+    return { putting_through_to: line.name, number: line.number, note: 'Handed over when you finish speaking.' };
+  } } };
+  const operator = createOperator({ context, callTools, onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
   const handlers = { text: () => {}, announce: () => {} };
   let holdIndex = Math.floor(Math.random() * 3); // rotate the hold lines so the same one doesn't come twice running
 
@@ -213,6 +222,7 @@ export function operatorCall({ out, clips, status, opening = null }) {
       handlers.text = () => {}; handlers.announce = () => {};
     }
     await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
+    if (active && transferTo) { const number = transferTo; transferTo = null; onTransfer(number); return; }
     if (active) { detector.reset(); listener.resume(); listening = true; status('Doris is listening'); }
   }
 

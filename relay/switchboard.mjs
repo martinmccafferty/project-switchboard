@@ -10,6 +10,8 @@ import os from 'node:os';
 import { WebSocketServer } from 'ws';
 import { wavToPcm, plugClick, silence } from './audio.mjs';
 import { operatorCall } from './call-operator.mjs';
+import { speakingClock } from './clock.mjs';
+import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
 const PORT = Number(process.env.PORT) || 8080;
@@ -19,7 +21,7 @@ const FRAME_BYTES = FRAME_SAMPLES * 2;
 const LEAD_MS = 100;                       // how far ahead of real time audio is sent (phone keeps a playout buffer, D-16)
 // A number is complete when the caller stops dialing (dial pace varies; the real dial is rotary-style).
 // Timings are first guesses, to tune on the real dial in Phase 4.
-const KNOWN_NUMBERS = new Set(['101', '911']);                    // grows with the service lines (D-26)
+const KNOWN_NUMBERS = new Set([...serviceNumbers, '911']);                    // grows with the service lines (D-26)
 const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
@@ -106,7 +108,7 @@ function phoneLine(ws, from) {
   function deliverReminder(reminder) {
     state = 'connected'; connectedTo = 'operator'; out.setTone(null);
     status(`Reminder call: ${reminder.message}`);
-    call = operatorCall({ out, clips, status, opening: {
+    call = operatorCall({ out, clips, status, onTransfer: transfer, opening: {
       text: `Hello, this is the operator, ringing with your reminder: ${reminder.message}.`,
       context: `You rang the caller to deliver a reminder they set earlier: "${reminder.message}" (it was due ${sayWhen(reminder.dueAt)}). `
         + "You've already said: \"Hello, this is the operator, ringing with your reminder.\" plus the reminder itself. "
@@ -124,10 +126,15 @@ function phoneLine(ws, from) {
     }
     if (number === '0') {
       connectedTo = 'operator'; status('Operator');
-      call = operatorCall({ out, clips, status });
+      call = operatorCall({ out, clips, status, onTransfer: transfer });
     } else if (number === '911') {
       connectedTo = 'announcement'; status('911: emergency notice');
       for (let i = 0; i < 2 && state === 'connected'; i++) await out.play(clips.doris['no-emergency']);
+    } else if (number === '123') {
+      connectedTo = 'clock'; status('Speaking clock (# for the operator)');
+      const id = lineId;
+      speakingClock({ out, clips, isLive: () => id === lineId && connectedTo === 'clock' })
+        .catch((err) => console.log(`Speaking clock failed: ${err.message}`));
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -137,7 +144,18 @@ function phoneLine(ws, from) {
     }
   }
 
+  // Doris put the caller through to a service line: her side of the call ends and the exchange connects the number.
+  function transfer(number) {
+    if (state !== 'connected' || connectedTo !== 'operator') return;
+    call?.hangUp(); call = null; connectedTo = null; status(`Operator put the call through to ${number}`);
+    connect(number);
+  }
+
   function onDigit(d) {
+    // # on a service line (or 0, out of habit): back to the operator (D-27).
+    if (state === 'connected' && (d === '#' || d === '0') && connectedTo === 'clock') {
+      lineId++; out.clear(); connectedTo = null; digits = '0'; status('Back to the operator'); connect('0'); return;
+    }
     if (state === 'offhook') { state = 'dialing'; out.setTone(null); }
     if (state !== 'dialing') return;
     digits += d; status(`Dialed ${digits}`);

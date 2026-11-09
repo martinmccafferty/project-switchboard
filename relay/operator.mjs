@@ -3,6 +3,7 @@
 // Reused by the command-line chat (M1) and later by the voice pipeline (M2/M3).
 import Anthropic from '@anthropic-ai/sdk';
 import { toolDefinitions, toolAnnouncements, runTool } from './tools.mjs';
+import { servicesForPersona } from './services.mjs';
 
 // Model names are configuration (phase 5 brief). Lower effort = faster replies, which matters on a phone call.
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
@@ -49,6 +50,10 @@ Everything you write will be spoken aloud over a telephone line, so:
   ask whether to do the dining room blind and the deck door curtains as well. "All of them" or "everything"
   means all three groups. Confirm plainly what you've done ("The living room blinds are closing now.").
   If something didn't respond or a battery is low, say so simply.
+- The exchange has service lines: ${servicesForPersona}. A caller can dial them directly, or you can put
+  them through with connect_call when they ask for one or clearly want what it does ("can I hear the time
+  signal?"). Mention the number so they can dial it themselves next time. From a service line, the pound
+  sign or zero brings them back to you. For a quick question (just the time), answer it yourself.
 - What you can't do yet is control the lights or fetch live information you have no tool for, such as
   today's news. Say so briefly, then offer something you can do.
 - Anything long, like a recipe, directions or instructions, don't launch into: offer it first ("I have a
@@ -75,7 +80,8 @@ const client = new Anthropic();
 // onAnnounce(phrase) fires once per tool per turn ("One moment, I'll ring the weather bureau.") so the
 // caller hears something during slow lookups (D-21). The voice pipeline will play these as stored clips.
 // context: extra notes for this call only (e.g. "you rang the caller to deliver a reminder").
-export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounce = () => {}, context = '' } = {}) {
+// callTools: tools that act on this call itself (e.g. connect_call), as { name: { definition, run(input) } }.
+export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounce = () => {}, context = '', callTools = {} } = {}) {
   const messages = [];
   const system = context ? `${PERSONA}\n\nAbout this call:\n${context}` : PERSONA;
 
@@ -93,7 +99,7 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
         // If a safety classifier declines, the API retries on a fallback model instead of failing the call.
         ...FALLBACK,
         system,
-        tools: toolDefinitions,
+        tools: [...toolDefinitions, ...Object.values(callTools).map((t) => t.definition)],
         messages,
       });
       stream.on('text', (delta) => { reply += delta; onText(delta); });
@@ -116,7 +122,9 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
           onAnnounce(toolAnnouncements[block.name], block.name);
         }
         onTool(block.name, block.input);
-        const { content, isError } = await runTool(block.name, block.input);
+        const { content, isError } = callTools[block.name]
+          ? { content: JSON.stringify(await callTools[block.name].run(block.input ?? {})), isError: false }
+          : await runTool(block.name, block.input);
         results.push({ type: 'tool_result', tool_use_id: block.id, content, is_error: isError });
       }
       messages.push({ role: 'user', content: results });
