@@ -3,6 +3,8 @@
 export const SERVICES = [
   { number: '123', id: 'speaking_clock', name: 'the speaking clock',
     about: 'a British-style speaking clock: the exact time every ten seconds with three pips' },
+  { number: '234', id: 'weather_line', name: 'the weather line',
+    about: "a recorded-style forecast for home: now, tonight and tomorrow" },
   { number: '101', id: 'echo_test', name: 'the echo test line',
     about: 'lets the caller hear their own voice to test the line' },
 ];
@@ -12,9 +14,10 @@ export const serviceNumbers = SERVICES.map((s) => s.number);
 // Doris's tool: hand the caller over to a service line once she has finished speaking.
 export const connectTool = {
   name: 'connect_call',
-  description: 'Put the caller through to one of the exchange\'s service lines. Say a short line first ("Putting you '
-    + 'through to the speaking clock now."); the call is handed over as soon as you finish speaking, so say nothing '
-    + `after it. Lines: ${SERVICES.map((s) => `${s.id} (dial ${s.number}): ${s.about}`).join('; ')}.`,
+  description: 'Put the caller through to one of the exchange\'s service lines. The switchboard says "Right away." '
+    + 'for you, so don\'t; after the tool, say a short line ("Putting you through to the speaking clock now.") and '
+    + 'the call is handed over as soon as you finish speaking, so say nothing after it. '
+    + ` Lines: ${SERVICES.map((s) => `${s.id} (dial ${s.number}): ${s.about}`).join('; ')}.`,
   input_schema: {
     type: 'object',
     properties: { service: { type: 'string', enum: SERVICES.map((s) => s.id) } },

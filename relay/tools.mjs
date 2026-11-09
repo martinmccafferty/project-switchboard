@@ -3,7 +3,7 @@ import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
 // Weather uses Open-Meteo (free, no API key). Default location: Morrisville, NC.
 
-const HOME = {
+export const HOME = {
   name: process.env.HOME_LOCATION_NAME || 'Morrisville, North Carolina',
   latitude: Number(process.env.HOME_LATITUDE) || 35.8235,
   longitude: Number(process.env.HOME_LONGITUDE) || -78.8256,
@@ -50,6 +50,7 @@ export const toolAnnouncements = {
   get_time: 'One moment, let me check the clock.',
   get_weather: "One moment, I'll ring the weather bureau.",
   move_blinds: 'Right away.',
+  connect_call: 'Right away.', // the tool itself lives in services.mjs
   blinds_status: 'One moment, let me take a look.',
 };
 
@@ -68,7 +69,7 @@ function getTime({ timezone } = {}) {
   return { timezone: zone, local_time: text };
 }
 
-async function getWeather({ location } = {}) {
+export async function getWeather({ location } = {}) {
   let place = HOME;
   if (location) {
     const geo = await fetchJson(

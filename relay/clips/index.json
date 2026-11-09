@@ -64,6 +64,11 @@
       "text": "One moment, let me take a look.",
       "click": false,
       "seconds": 2.4
+    },
+    "announce-connect_call": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 0.85
     }
   },
   "ethel": {
@@ -121,6 +126,11 @@
       "text": "One moment, let me take a look.",
       "click": false,
       "seconds": 2.36
+    },
+    "announce-connect_call": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.2
     }
   }
 }

@@ -11,6 +11,7 @@ import { WebSocketServer } from 'ws';
 import { wavToPcm, plugClick, silence } from './audio.mjs';
 import { operatorCall } from './call-operator.mjs';
 import { speakingClock } from './clock.mjs';
+import { weatherLine } from './weatherline.mjs';
 import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
@@ -25,7 +26,8 @@ const KNOWN_NUMBERS = new Set([...serviceNumbers, '911']);                    //
 const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
-const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
+const SWITCHING_MS = 500;
+const SERVICE_LINES = new Set(['clock', 'weather']); // lines that # or 0 leaves for the operator                  // the exchange's beat of silence before connecting a dialed number (not 0)
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -56,15 +58,17 @@ class Outbound {
   // Background sound looped whenever nothing is queued (the waiting tick, D-20); null to stop.
   setFiller(pcm) { if (pcm !== this.filler) { this.filler = pcm; this.fillerOffset = 0; } }
   nextFrame() {
-    while (this.queue.length) {
-      const item = this.queue[0];
-      if (item.offset < item.pcm.length) {
-        const frame = Buffer.alloc(FRAME_BYTES);
-        item.pcm.copy(frame, 0, item.offset, item.offset + FRAME_BYTES);
-        item.offset += FRAME_BYTES;
-        return frame;
+    // A frame is filled across queued pieces, so live speech arriving in small chunks plays without a sliver of
+    // silence at every chunk boundary (padding each chunk's last frame did that, T-025).
+    if (this.queue.length) {
+      const frame = Buffer.alloc(FRAME_BYTES); let filled = 0;
+      while (filled < FRAME_BYTES && this.queue.length) {
+        const item = this.queue[0];
+        const n = item.pcm.copy(frame, filled, item.offset, item.offset + FRAME_BYTES - filled);
+        item.offset += n; filled += n;
+        if (item.offset >= item.pcm.length) { this.queue.shift(); item.resolve(); }
       }
-      this.queue.shift(); item.resolve();
+      if (filled) return frame;
     }
     if (this.filler) {
       const frame = Buffer.alloc(FRAME_BYTES);
@@ -135,6 +139,11 @@ function phoneLine(ws, from) {
       const id = lineId;
       speakingClock({ out, clips, isLive: () => id === lineId && connectedTo === 'clock' })
         .catch((err) => console.log(`Speaking clock failed: ${err.message}`));
+    } else if (number === '234') {
+      connectedTo = 'weather'; status('Weather line (# for the operator)');
+      const id = lineId;
+      weatherLine({ out, clips, isLive: () => id === lineId && connectedTo === 'weather' })
+        .catch((err) => console.log(`Weather line failed: ${err.message}`));
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -153,7 +162,7 @@ function phoneLine(ws, from) {
 
   function onDigit(d) {
     // # on a service line (or 0, out of habit): back to the operator (D-27).
-    if (state === 'connected' && (d === '#' || d === '0') && connectedTo === 'clock') {
+    if (state === 'connected' && (d === '#' || d === '0') && SERVICE_LINES.has(connectedTo)) {
       lineId++; out.clear(); connectedTo = null; digits = '0'; status('Back to the operator'); connect('0'); return;
     }
     if (state === 'offhook') { state = 'dialing'; out.setTone(null); }

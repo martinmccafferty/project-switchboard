@@ -4,20 +4,16 @@
 // Render the clips once (committed):  node --env-file=.env clock.mjs   (add --all to re-render everything)
 import fs from 'node:fs';
 import { silence } from './audio.mjs';
+import { numberWords as words, renderPieces } from './servicevoice.mjs';
 
 const RATE = 16000;
 const TZ = process.env.HOME_TIMEZONE || 'America/New_York'; // the home's time, not the server's (Railway runs on UTC)
 // Audio reaches the ear a little after it is scheduled (send lead + the phone's playout buffer), so the pips are
 // sent this much early. Re-tune after the move to Railway and again on the real phone.
 const LATENCY_MS = Number(process.env.CLOCK_LATENCY_MS ?? 150);
-const VOICE = { engine: 'gemini', voice: 'Charon' };
 const STYLE = 'A calm, precise British speaking-clock announcer of the 1960s: received pronunciation, measured and even, '
   + 'neutral and authoritative, every word distinct.';
 
-const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
-  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty'];
-const words = (n) => (n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : ''));
 
 // Every piece the clock can say: prefix, hour, minute, seconds.
 export const PIECES = {
@@ -103,42 +99,5 @@ export async function speakingClock({ out, clips, isLive }) {
 
 // --- Rendering the clips (run this file directly).
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const OpenAI = (await import('openai')).default; const { toFile } = await import('openai');
-  const { engines, SAMPLE_RATE } = await import('./voices.mjs');
-  const { writeWav, toPhoneRate } = await import('./audio.mjs');
-  const openai = new OpenAI();
-  // Numbers in a transcript ("42", "5") count as their words; hyphens, case and punctuation don't matter.
-  const norm = (s) => s.toLowerCase().replace(/\d+/g, (d) => ` ${words(Number(d)) || 'oh'} `).replace(/[^a-z' ]+/g, ' ')
-    .replace(/\b(zero|o)\b/g, 'oh').replace(/\s+/g, ' ').trim();
-  // Cut the voice engine's leading and trailing silence (keep 15 ms), so the pieces join tightly.
-  const trim = (pcm) => {
-    let a = 0; let b = pcm.length / 2 - 1;
-    while (a < b && Math.abs(pcm.readInt16LE(a * 2)) < 400) a++;
-    while (b > a && Math.abs(pcm.readInt16LE(b * 2)) < 400) b--;
-    return pcm.subarray(Math.max(0, a - 240) * 2, Math.min(pcm.length / 2, b + 240) * 2);
-  };
-  const dir = 'clips/clock'; fs.mkdirSync(dir, { recursive: true });
-  const indexPath = `${dir}/index.json`;
-  const index = fs.existsSync(indexPath) ? JSON.parse(fs.readFileSync(indexPath, 'utf8')) : {};
-  const all = process.argv.includes('--all');
-  const todo = Object.entries(PIECES).filter(([name, text]) => all || index[name] !== text || !fs.existsSync(`${dir}/${name}.wav`));
-  const speaker = await engines[VOICE.engine]({ voice: VOICE.voice, style: STYLE, maxRateLimitWaits: 10,
-    onWait: (s) => console.log(`  (rate limited, waiting ${s} s)`) });
-  let failed = 0;
-  for (const [name, text] of todo) {
-    let ok = false; let heard = '';
-    for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
-      const { pcm } = await speaker.speak(text);
-      writeWav(`${dir}/.check.wav`, pcm, SAMPLE_RATE);
-      heard = (await openai.audio.transcriptions.create({ file: await toFile(fs.readFileSync(`${dir}/.check.wav`), 'c.wav'), model: 'gpt-transcribe' })).text;
-      ok = norm(heard) === norm(text);
-      if (ok) { writeWav(`${dir}/${name}.wav`, trim(toPhoneRate(pcm, SAMPLE_RATE, RATE)), RATE); index[name] = text; }
-    }
-    fs.rmSync(`${dir}/.check.wav`, { force: true });
-    fs.writeFileSync(indexPath, JSON.stringify(index, null, 2) + '\n');
-    console.log(`  ${name}: ${ok ? 'ok' : `FAILED (heard "${heard}")`}  "${text}"`);
-    if (!ok) failed++;
-  }
-  speaker.close?.();
-  console.log(failed ? `${failed} pieces failed the word check; run again to retry them` : 'All clock pieces up to date');
+  await renderPieces('clips/clock', PIECES, STYLE, { all: process.argv.includes('--all') });
 }
