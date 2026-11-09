@@ -1,10 +1,11 @@
 // 234 weather line (D-26, D-35, D-36): a recorded-style forecast read by the services' voice (Charon) like a
 // 1960s radio bulletin. The caller dials 1 for home (the HOME_LOCATION setting) or 2 and says another place.
 // The forecast repeats, with the operator hint between readings, until the caller hangs up or chooses again.
-// Bulletins come from the weather lookup Doris uses (no Claude), voiced live, and are kept 15 minutes per place.
+// Bulletins come from the weather lookup Doris uses (Open-Meteo forecast models), voiced live; a voicing is reused
+// while its words are unchanged.
 // Stored clips:  node --env-file=.env weatherline.mjs      Today's home bulletin text:  ... weatherline.mjs --text
 import { getWeather } from './tools.mjs';
-import { geocode, HOME_NAME, HOME_TOWN, UNITS, CELSIUS } from './home.mjs';
+import { geocodeSpoken, HOME_NAME, HOME_TOWN, UNITS, CELSIUS } from './home.mjs';
 import { createListener } from './listen.mjs';
 import { numberWords, serviceSpeaker, renderPieces, transcribe } from './servicevoice.mjs';
 import { StreamResampler, silence } from './audio.mjs';
@@ -12,7 +13,6 @@ import { SAMPLE_RATE } from './voices.mjs';
 
 const RATE = 16000;
 const STYLE = 'A calm, warm British radio weather announcer of the 1960s: received pronunciation, clear and unhurried.';
-const CACHE_MS = 15 * 60 * 1000;
 export const PIECES = {
   intro: 'This is the weather bureau.',
   unavailable: "I'm sorry, the weather report is not available just now.",
@@ -39,14 +39,15 @@ function spokenTime(h, m) {
 }
 
 // The bulletin text, from the weather lookup's data.
-export function bulletin(w, { home = true } = {}) {
+export function bulletin(w) {
   const town = w.location.split(',')[0];
   const [, hh, mm, ap] = /^(\d+):(\d+) (AM|PM)/.exec(w.local_time_there);
-  const h = (Number(hh) % 12) + (ap === 'PM' ? 12 : 0); const m = Math.floor(Number(mm) / 15) * 15;
+  const h = (Number(hh) % 12) + (ap === 'PM' ? 12 : 0); const m = Math.floor(Number(mm) / 5) * 5;
   // Tonight: the coming hours from 6 PM to 6 AM.
   const night = w.next_24_hours.filter((x) => { const k = hourOf(x.time); return k >= 18 || k < 7; }).slice(0, 13);
   const parts = [
-    `Here is the forecast for ${town}, issued at ${spokenTime(h, m)}${home ? '' : ' local time'}.`,
+    // Open-Meteo serves forecast-model output, not an issued bulletin, so say the time there now (T-028).
+    `Here is the latest forecast for ${town}, where it is now ${spokenTime(h, m)}.`,
     // The scale is named once, on the first temperature, as a forecaster would.
     `At present it is ${deg(w.now.temperature)} ${UNITS.temperatureWord} ${atPresent(w.now.conditions)}. ${wind(w.now.wind_speed)}`,
   ];
@@ -60,7 +61,7 @@ export function bulletin(w, { home = true } = {}) {
   return parts.join(' ');
 }
 
-// Voiced bulletins, kept 15 minutes per place: { key: { at, pcm } } (16 kHz).
+// The last voicing per place: { key: { text, pcm } } (16 kHz), reused while the words are the same.
 const cache = new Map();
 // The menu says the home location, so it is voiced live once and then kept.
 let menuPcm = null;
@@ -100,18 +101,23 @@ export function weatherCall({ out, clips, log = console.log }) {
   let listener = null; let waitingForPlace = false;
   const stillOn = (c) => live && c === choice;
 
-  // Reads a place's forecast (voicing it live the first time), then hint and repeat, until a new choice.
+  // Reads a place's forecast, then hint and repeat, until a new choice. The text is rebuilt each call (it says
+  // the time there, to five minutes); it is voiced live only when the words differ from the last voicing.
   async function forecast(c, place) {
     const key = place ? place.name : 'home';
-    let pcm = cache.get(key)?.at > Date.now() - CACHE_MS ? cache.get(key).pcm : null;
+    let pcm;
     try {
-      if (!pcm) {
-        const text = bulletin(await getWeather(place ? { location: place.name } : {}), { home: !place });
+      const text = bulletin(await getWeather(place ? { location: place.name } : {}));
+      const kept = cache.get(key);
+      if (kept?.text === text) {
+        pcm = kept.pcm;
+        if (stillOn(c)) await out.play(pcm);
+      } else {
         let last = Promise.resolve();
         pcm = await voice(text, (chunk) => { if (stillOn(c)) last = out.play(chunk); });
-        cache.set(key, { at: Date.now(), pcm });
+        cache.set(key, { text, pcm });
         await last;
-      } else if (stillOn(c)) await out.play(pcm);
+      }
     } catch (err) {
       log(`Weather line failed: ${err.message}`);
       if (stillOn(c)) await out.play(Buffer.concat([w.unavailable, silence(700, RATE), hint]));
@@ -145,7 +151,7 @@ export function weatherCall({ out, clips, log = console.log }) {
       log(`Weather line: caller asked for "${said}"`);
       out.play(w['one-moment']);
       let place = null;
-      try { place = said ? await geocode(said) : null; } catch (err) { log(`Place lookup failed: ${err.message}`); }
+      try { place = said ? await geocodeSpoken(said) : null; } catch (err) { log(`Place lookup failed: ${err.message}`); }
       if (!stillOn(c)) return;
       if (place) { forecast(c, place); return; }
       await out.play(Buffer.concat([w['not-found'], silence(400, RATE)]));

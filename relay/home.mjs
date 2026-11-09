@@ -67,3 +67,54 @@ export async function homePlace() {
   } else throw new Error('HOME_LOCATION is not set');
   return home;
 }
+
+// A caller's spoken answer ("I think maybe Durham in North Carolina", "Glasgow in Montana State") -> a place.
+// A small, fast Claude model pulls out town, region and country (T-028: word rules couldn't keep up with how
+// people talk); the word-rule lookup above is the fallback if it fails or finds nothing.
+const PLACE_MODEL = process.env.PLACE_MODEL || 'claude-haiku-5-5';
+let anthropic = null;
+async function placeFromSpeech(said) {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  anthropic ??= new Anthropic();
+  const msg = await anthropic.messages.create({
+    model: PLACE_MODEL,
+    max_tokens: 200,
+    system: 'A telephone caller was asked which town or city they want the weather for, and their answer was '
+      + 'transcribed. Give the place they mean, using the standard English names. Region and country only as the '
+      + 'caller said them (leave them empty otherwise), with a US state, Canadian province or similar written as '
+      + 'its plain name ("Montana", not "Montana State" or "MT").',
+    tools: [{
+      name: 'place',
+      description: 'The place the caller asked for.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          town: { type: 'string', description: 'Town or city, e.g. "Glasgow". Empty if the caller named no place.' },
+          region: { type: 'string', description: 'State, province or region the caller said, e.g. "Montana", else empty.' },
+          country: { type: 'string', description: 'Country the caller said, e.g. "Scotland", else empty.' },
+        },
+        required: ['town', 'region', 'country'],
+      },
+    }],
+    tool_choice: { type: 'tool', name: 'place' },
+    messages: [{ role: 'user', content: said }],
+  }, { timeout: 6000 });
+  const input = msg.content.find((b) => b.type === 'tool_use')?.input;
+  return input?.town?.trim() ? input : null;
+}
+
+export async function geocodeSpoken(said) {
+  let p = null;
+  try { p = await placeFromSpeech(said); } catch (err) { console.log(`Place understanding failed (${err.message}); using word rules`); }
+  if (p) {
+    const region = p.region?.trim(); const country = p.country?.trim();
+    // Most specific first; drop a qualifier only if the lookup can't match it.
+    const tries = [[region, country], [region], [country]].map((r) => r.filter(Boolean))
+      .filter((r, i, all) => all.findIndex((x) => x.join() === r.join()) === i);
+    for (const rest of tries) {
+      const hit = await lookup(p.town.trim(), rest);
+      if (hit) return hit;
+    }
+  }
+  return geocode(said);
+}
