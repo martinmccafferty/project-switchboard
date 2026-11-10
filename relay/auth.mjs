@@ -41,9 +41,15 @@ export function checkAuthConfig() {
   console.log(`Sign-in with Google is on (${OWNERS.length} owner${OWNERS.length === 1 ? '' : 's'})`);
 }
 
+// Gmail ignores dots in the name (andy.smith@ and andysmith@ are one mailbox), and Google reports the account as it
+// was created, so the list may hold either form: compare without them.
+const sameEmail = (email) => {
+  const [name, domain = ''] = email.trim().toLowerCase().split('@');
+  return `${/^(gmail|googlemail)\.com$/.test(domain) ? name.replaceAll('.', '') : name}@${domain.replace('googlemail.com', 'gmail.com')}`;
+};
 const allowed = (email) => {
-  const e = email.toLowerCase();
-  return OWNERS.includes(e) || (settings().access?.emails ?? []).some((x) => x.toLowerCase() === e);
+  const e = sameEmail(email);
+  return OWNERS.some((x) => sameEmail(x) === e) || (settings().access?.emails ?? []).some((x) => sameEmail(x) === e);
 };
 
 // --- Signed values ("payload.signature"), used for the session and the sign-in state.
@@ -149,7 +155,7 @@ export async function handleAuth(req, res) {
   if (p === '/api/me') {
     const email = signedIn(req);
     res.writeHead(email ? 200 : 401, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    res.end(JSON.stringify(email ? { email, owner: OWNERS.includes(email.toLowerCase()) } : { error: 'Not signed in' }));
+    res.end(JSON.stringify(email ? { email, owner: OWNERS.some((x) => sameEmail(x) === sameEmail(email)) } : { error: 'Not signed in' }));
     return true;
   }
 
