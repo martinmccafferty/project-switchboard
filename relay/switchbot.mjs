@@ -24,8 +24,11 @@ async function request(method, path, body) {
 
 export const listDevices = () => request('GET', '/devices');
 export const deviceStatus = (id) => request('GET', `/devices/${id}/status`);
-export const sendCommand = (id, command, parameter = 'default') =>
-  request('POST', `/devices/${id}/commands`, { command, parameter, commandType: 'command' });
+// SWITCHBOT_DRY_RUN=1: commands are logged, not sent (for testing what Doris and the porter do without
+// moving anything).
+export const sendCommand = (id, command, parameter = 'default') => (process.env.SWITCHBOT_DRY_RUN
+  ? (console.log(`(dry run) ${id}: ${command} ${parameter}`), Promise.resolve({}))
+  : request('POST', `/devices/${id}/commands`, { command, parameter, commandType: 'command' }));
 
 // --- The house comes from the settings (home.groups, D-38): each group has an id, a name ("the living room
 // blinds"), where it is, what callers call it, its devices ({ id, name, kind: blind | curtain }), and which
@@ -78,7 +81,9 @@ export function homeForPersona() {
   const lines = [
     `- The blinds and curtains. ${home.layout ?? ''} The groups: ${gs.map((g) => `${g.name} (${g.where ?? ''})`).join('; ')}.`,
     ...gs.filter((g) => g.callersSay?.length).map((g) => `  ${g.callersSay.map((c) => `"${c}"`).join(' or ')} means ${g.name}.`),
-    ...gs.filter((g) => g.offerNext?.length).map((g) => `  After moving ${g.name}, ask whether to do ${g.offerNext.map(name).join(' and ')} as well.`),
+    // Every time, opening or closing (T-033: offered after opening but not after closing).
+    ...gs.filter((g) => g.offerNext?.length).map((g) => `  Whenever you open or close ${g.name} and the caller hasn't mentioned `
+      + `${g.offerNext.map(name).join(' or ')}, ask whether to do ${g.offerNext.length > 1 ? 'those' : 'that'} as well.`),
     '  "All of them" or "everything" means every group. Confirm plainly what you\'ve done ("The living room blinds are',
     '  closing now."). If something didn\'t respond or a battery is low, say so simply.',
   ];
@@ -117,6 +122,11 @@ async function blindsStatus() {
 }
 
 export const homeHandlers = { move_blinds: moveBlinds, blinds_status: blindsStatus };
+// The home controls in a few words, for describing the exchange ('' if none are set up).
+export const homeControlsSummary = () => {
+  const kinds = new Set(groups().flatMap((g) => g.devices.map((d) => d.kind)));
+  return kinds.size ? `the household's ${[...kinds].map((k) => `${k}s`).join(' and ')}` : '';
+};
 
 // Run on its own: lists the account's devices (read-only). With --draft, prints a starting "home" section for
 // data/settings.json, one group per blind or curtain, to rename and combine (e.g. a pair of curtain motors).

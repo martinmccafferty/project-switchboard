@@ -69,7 +69,11 @@ class TurnDetector {
 // live voice instead of the greeting clip, and `context` tells Claude what's going on.
 import { takeMissed } from './reminders.mjs';
 // onTransfer(number): Doris has put the caller through to a service line; the exchange takes over the call.
-export function operatorCall({ out, clips, status, opening = null, onTransfer = () => {} }) {
+// line: who answers. Doris by default (Ethel takes over if her voice fails); the 345 home line passes its own
+// { name, clipSet, speaker(), agent } (D-40). Clips come from clips[clipSet]: greeting, hold-*, announce-*.
+const DORIS = { name: 'Doris', clipSet: 'doris', speaker: () => operatorSpeaker('doris'), failover: 'ethel' };
+export function operatorCall({ out, clips, status, opening = null, onTransfer = () => {}, line = DORIS }) {
+  const isDoris = line === DORIS;
   let transferTo = null; // set by connect_call; acted on once Doris has finished speaking
   let active = true; let listening = false;
   // When the caller was last audibly speaking (measured here, for timing what the caller actually waits).
@@ -78,7 +82,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
   const listener = createListener({ onTurn: (text) => { if (active && listening) handleTurn(async () => ({ text, live: true })); } });
   const detector = new TurnDetector(listener);
   // On an ordinary call, reminders that rang unanswered are mentioned (once) early in the call.
-  const missed = opening ? [] : takeMissed();
+  const missed = opening || !isDoris ? [] : takeMissed();
   const context = opening?.context ?? (missed.length
     ? `These reminders rang while nobody answered. Mention them briefly early in this call: ${missed.map((m) => `"${m.message}" (due ${m.was_due})`).join('; ')}.`
     : '');
@@ -88,13 +92,15 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
     transferTo = line.number;
     return { putting_through_to: line.name, number: line.number, note: 'Handed over when you finish speaking.' };
   } } };
-  const operator = createOperator({ context, callTools, onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
+  const lineTools = isDoris ? callTools : line.callTools?.({ transferTo: (number) => { transferTo = number; } }) ?? {};
+  const operator = createOperator({ context, callTools: lineTools, agent: line.agent,
+    onText: (d) => handlers.text(d), onAnnounce: (p, tool) => handlers.announce(p, tool) });
   const handlers = { text: () => {}, announce: () => {} };
   let holdIndex = Math.floor(Math.random() * 3); // rotate the hold lines so the same one doesn't come twice running
 
   // Doris's voice opens while the greeting plays. If it fails, Ethel takes over the call (D-24).
-  let voiceName = 'doris';
-  let voice = operatorSpeaker('doris').catch((err) => { console.log(`Doris's voice failed to open: ${err.message}`); return null; });
+  let voiceName = line.clipSet;
+  let voice = line.speaker().catch((err) => { console.log(`${line.name}'s voice failed to open: ${err.message}`); return null; });
   async function speak(text, onChunk) {
     let streamed = false;
     try {
@@ -103,7 +109,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
       return await v.speak(text, (pcm) => { streamed = true; onChunk(pcm); });
     } catch (err) {
       if (streamed) throw err; // part of the sentence already played; don't repeat it in another voice
-      if (voiceName !== 'doris') throw err;
+      if (!line.failover || voiceName !== line.clipSet) throw err;
       console.log(`Doris's voice failed (${err.message}); Ethel takes over`);
       status('Ethel has taken over the board');
       voiceName = 'ethel';
@@ -123,9 +129,9 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
       try { await speak(opening.text, (chunk) => { if (active) last = out.play(resampler.push(chunk)); }); await last; }
       catch (err) { console.log(`Couldn't speak the opening: ${err.message}`); }
     } else {
-      await out.play(clips.doris.greeting);
+      await out.play(clips[line.clipSet].greeting);
     }
-    if (active) { listening = true; status('Doris is listening'); }
+    if (active) { listening = true; status(`${line.name} is listening`); }
   })();
 
   // getTranscript() resolves to { text, live }.
@@ -167,17 +173,24 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
       if (!heard.trim()) throw new Error('nothing heard');
       status(`Caller: "${heard}"`);
       holdTimer = setTimeout(() => {
-        if (!active || timing.firstText !== undefined || lastSaid) return;
+        // (A whole reply may already be queued for voicing; that isn't sound yet.)
+        if (!active || (line.wholeReply ? timing.firstSound : timing.firstText) !== undefined
+          || lastSaid === 'announcement' || lastSaid === 'hold') return;
         const holds = Object.keys(clips[voiceName]).filter((k) => k.startsWith('hold-'));
         if (!holds.length) return;
         lastSaid = 'hold'; timing.hold = ms();
-        sayClip(clips[voiceName][holds[holdIndex++ % holds.length]], { thenTick: true });
+        // Straight onto the line, not into the voicing queue, so it comes before a reply still being voiced.
+        lastPlay = out.play(clips[voiceName][holds[holdIndex++ % holds.length]]); timing.firstSound ??= ms();
+        clearTimeout(tickTimer); out.setFiller(TICK);
       }, HOLD_MS);
 
       let pending = '';
       handlers.text = (delta) => {
-        timing.firstText ??= ms(); clearTimeout(holdTimer);
+        timing.firstText ??= ms();
         pending += delta;
+        // A voice that is slow to start each piece (Charon, ~1.8 s) speaks the reply whole, at the end (T-032).
+        if (line.wholeReply) return;
+        clearTimeout(holdTimer);
         let m;
         // The first piece of a reply may end at a comma, semicolon or colon (2+ words) so Doris starts sooner;
         // after that, whole sentences.
@@ -200,9 +213,9 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
         else saySentence(phrase);
       };
       const reply = await operator.ask(heard);
-      console.log(`Doris: "${reply.replace(/\s+/g, ' ').trim()}"`);
+      console.log(`${line.name}: "${reply.replace(/\s+/g, ' ').trim()}"`);
       timing.claude = ms();
-      if (pending.trim()) saySentence(pending.trim());
+      if (pending.trim()) saySentence((line.clean ? line.clean(pending) : pending).trim());
       await chain; await lastPlay;
       timing.done = ms();
       const heardAfter = timing.sinceLastWord; // caller's last word -> transcript ready
@@ -215,7 +228,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
         console.log(`Turn failed: ${err.message}`);
         await chain.catch(() => {});
         clearTimeout(tickTimer); out.setFiller(null);
-        await out.play(clips.doris['line-trouble']);
+        await out.play(clips[line.clipSet]['line-trouble'] ?? clips.doris['line-trouble']);
       }
     } finally {
       clearTimeout(tickTimer); clearTimeout(holdTimer); out.setFiller(null);
@@ -223,7 +236,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
     }
     await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
     if (active && transferTo) { const number = transferTo; transferTo = null; onTransfer(number); return; }
-    if (active) { detector.reset(); listener.resume(); listening = true; status('Doris is listening'); }
+    if (active) { detector.reset(); listener.resume(); listening = true; status(`${line.name} is listening`); }
   }
 
   return {

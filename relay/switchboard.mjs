@@ -13,6 +13,7 @@ import { operatorCall } from './call-operator.mjs';
 import { speakingClock } from './clock.mjs';
 import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
+import { homeLine } from './homeline.mjs';
 import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
@@ -28,7 +29,7 @@ const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a kno
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
 const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
-const SERVICE_LINES = new Set(['clock', 'weather']); // lines that # or 0 leaves for the operator
+const SERVICE_LINES = new Set(['clock', 'weather', 'home']); // lines that # or 0 leaves for the operator
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -143,6 +144,9 @@ function phoneLine(ws, from) {
     } else if (number === '234') {
       connectedTo = 'weather'; status('Weather line: 1 home, 2 elsewhere, # operator');
       call = weatherCall({ out, clips, log: (t) => status(t) });
+    } else if (number === '345') {
+      connectedTo = 'home'; status('Home line (# for the operator)');
+      call = operatorCall({ out, clips, status, line: homeLine, onTransfer: transfer });
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -152,10 +156,12 @@ function phoneLine(ws, from) {
     }
   }
 
-  // Doris put the caller through to a service line: her side of the call ends and the exchange connects the number.
+  // Doris put the caller through to a service line (or the porter, back to Doris): that side of the call ends
+  // and the exchange connects the number.
   function transfer(number) {
-    if (state !== 'connected' || connectedTo !== 'operator') return;
-    call?.hangUp(); call = null; connectedTo = null; status(`Operator put the call through to ${number}`);
+    if (state !== 'connected' || !['operator', 'home'].includes(connectedTo)) return;
+    const from = connectedTo === 'home' ? 'Porter' : 'Operator';
+    call?.hangUp(); call = null; connectedTo = null; status(`${from} put the call through to ${number}`);
     connect(number);
   }
 
@@ -184,7 +190,7 @@ function phoneLine(ws, from) {
     if (isBinary) {
       if (data.length !== FRAME_BYTES) return;
       if (connectedTo === 'echo') out.play(Buffer.from(data));
-      else if (connectedTo === 'operator' || connectedTo === 'weather') call?.onAudio(Buffer.from(data));
+      else if (['operator', 'weather', 'home'].includes(connectedTo)) call?.onAudio(Buffer.from(data));
       return;
     }
     let msg; try { msg = JSON.parse(data.toString()); } catch { return; }

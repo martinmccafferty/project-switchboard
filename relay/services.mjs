@@ -4,7 +4,9 @@ export const SERVICES = [
   { number: '123', id: 'speaking_clock', name: 'the speaking clock',
     about: 'a British-style speaking clock: the exact time every ten seconds with three pips' },
   { number: '234', id: 'weather_line', name: 'the weather line',
-    about: "a recorded-style forecast for home: now, tonight and tomorrow" },
+    about: 'a recorded-style forecast for home or anywhere else: now, tonight and tomorrow' },
+  { number: '345', id: 'home_line', name: 'the home line',
+    about: 'the house porter, a quick way to work the household controls' },
   { number: '101', id: 'echo_test', name: 'the echo test line',
     about: 'lets the caller hear their own voice to test the line' },
 ];
@@ -28,3 +30,13 @@ export const connectTool = {
 
 // For the persona: what Doris knows about the lines.
 export const servicesForPersona = SERVICES.map((s) => `${s.name} on ${s.number.split('').join('-')} (${s.about})`).join('; ');
+
+// What the whole exchange can do, for a character who must send callers to the right place (the porter):
+// built from the services list and whatever home controls the settings hold, so nothing is promised that
+// isn't set up (Martin: no hard-coded "can't do the lights").
+export function exchangeForPersona(homeControls) {
+  return `the operator, on zero: the time, the weather anywhere, reminders that ring back, general questions and `
+    + `conversation, putting callers through to the lines below${homeControls ? `, and ${homeControls}` : ''}; `
+    + SERVICES.map((s) => `${s.name} on ${s.number.split('').join('-')} (${s.about})`).join('; ')
+    + '. Anything not listed here, nobody on this exchange can do yet.';
+}

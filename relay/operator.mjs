@@ -11,7 +11,7 @@ import { homeForPersona } from './switchbot.mjs';
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 const EFFORT = process.env.CLAUDE_EFFORT || 'low';
 // Server-side model fallback (D-22) exists for Opus, Sonnet and Fable models, not Haiku.
-const FALLBACK = /opus|sonnet|fable/.test(MODEL) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {};
+const FALLBACK_OPTIONS = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
 
 // Built per call from the settings (home location, rooms), so a settings change applies to the next call.
 const persona = ({ name: HOME_NAME, town: HOME_TOWN } = household()) => `You are Doris, the Operator: a warm, crisp, efficient 1950s American telephone switchboard operator.
@@ -54,8 +54,8 @@ ${homeForPersona()}
   signal?"). You may give its number as a friendly aside ("It's two-three-four, should you ever care to ring
   it direct."), never as an instruction ("Next time you can dial it yourself" sounds curt). From a service
   line, the pound sign or zero brings them back to you. For a quick question (just the time), answer it yourself.
-- What you can't do yet is control the lights or fetch live information you have no tool for, such as
-  today's news. Say so briefly, then offer something you can do.
+- Anything you have no tool or service line for (a device that isn't set up, live information you can't
+  look up), say plainly you can't do it from this board yet, then offer something you can do.
 - Anything long, like a recipe, directions or instructions, don't launch into: offer it first ("I have a
   lovely recipe for that; shall I read you the ingredients first?") and then give it a piece at a time,
   checking the caller is ready for the next part.
@@ -81,9 +81,14 @@ const client = new Anthropic();
 // caller hears something during slow lookups (D-21). The voice pipeline will play these as stored clips.
 // context: extra notes for this call only (e.g. "you rang the caller to deliver a reminder").
 // callTools: tools that act on this call itself (e.g. connect_call), as { name: { definition, run(input) } }.
-export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounce = () => {}, context = '', callTools = {} } = {}) {
+// agent: another character on the same machinery (the 345 house porter): { system(), model, effort, tools(all) }.
+export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounce = () => {}, context = '', callTools = {}, agent = {} } = {}) {
+  const model = agent.model ?? MODEL; const effort = agent.effort === undefined ? EFFORT : agent.effort;
+  const fallback = /opus|sonnet|fable/.test(model) ? FALLBACK_OPTIONS : {};
+  const tools = () => [...(agent.tools ? agent.tools(toolDefinitions()) : toolDefinitions()), ...Object.values(callTools).map((t) => t.definition)];
   const messages = [];
-  const system = context ? `${persona()}\n\nAbout this call:\n${context}` : persona();
+  const base = agent.system ? agent.system() : persona();
+  const system = context ? `${base}\n\nAbout this call:\n${context}` : base;
 
   // Sends one caller utterance; streams reply text through onText; resolves with the full reply text.
   async function ask(callerText) {
@@ -93,13 +98,13 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
 
     while (true) {
       const stream = client.beta.messages.stream({
-        model: MODEL,
+        model,
         max_tokens: 4000,
-        output_config: { effort: EFFORT },
+        ...(effort ? { output_config: { effort } } : {}),
         // If a safety classifier declines, the API retries on a fallback model instead of failing the call.
-        ...FALLBACK,
+        ...fallback,
         system,
-        tools: [...toolDefinitions(), ...Object.values(callTools).map((t) => t.definition)],
+        tools: tools(),
         messages,
       });
       stream.on('text', (delta) => { reply += delta; onText(delta); });
@@ -117,9 +122,10 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
       const results = [];
       for (const block of message.content) {
         if (block.type !== 'tool_use') continue;
-        if (toolAnnouncements[block.name] && !announced.has(block.name)) {
+        const phrase = toolAnnouncements[block.name] ?? callTools[block.name]?.announce;
+        if (phrase && !announced.has(block.name)) {
           announced.add(block.name);
-          onAnnounce(toolAnnouncements[block.name], block.name);
+          onAnnounce(phrase, block.name);
         }
         onTool(block.name, block.input);
         const { content, isError } = callTools[block.name]
@@ -131,5 +137,5 @@ export function createOperator({ onText = () => {}, onTool = () => {}, onAnnounc
     }
   }
 
-  return { ask, model: MODEL, effort: EFFORT };
+  return { ask, model, effort };
 }

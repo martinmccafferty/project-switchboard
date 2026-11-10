@@ -60,7 +60,7 @@ export async function renderPieces(dir, pieces, style, { all = false } = {}) {
         const { pcm } = await speaker.speak(text);
         writeWav(`${dir}/.check.wav`, pcm, SAMPLE_RATE);
         heard = (await openai.audio.transcriptions.create({ file: await toFile(fs.readFileSync(`${dir}/.check.wav`), 'c.wav'), model: 'gpt-transcribe' })).text;
-        ok = norm(heard) === norm(text);
+        ok = norm(heard).replaceAll(' ', '') === norm(text).replaceAll(' ', ''); // "Homeline" = "Home line"
         if (ok) { writeWav(`${dir}/${name}.wav`, trim(toPhoneRate(pcm, SAMPLE_RATE, RATE)), RATE); index[name] = text; }
       }
       fs.rmSync(`${dir}/.check.wav`, { force: true });
