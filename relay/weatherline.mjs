@@ -96,7 +96,10 @@ export async function prepareWeatherLine() {
 }
 
 // One call to the weather line: { onDigit, onAudio, hangUp }. The exchange passes digits other than # and 0.
-export function weatherCall({ out, clips, log = console.log }) {
+// After MAX_READINGS readings of a forecast with no new choice, the line disconnects (onFinished), so a forgotten
+// handset doesn't play the weather for ever (Martin, T-034). 1, 2 or * starts the count again.
+const MAX_READINGS = Number(process.env.WEATHER_MAX_READINGS) || 5;
+export function weatherCall({ out, clips, log = console.log, onFinished = () => {} }) {
   const w = clips.weather; const hint = clips.clock.operator;
   let live = true; let choice = 0;         // bumps on every new choice, so an old loop stops
   let listener = null; let waitingForPlace = false;
@@ -121,13 +124,15 @@ export function weatherCall({ out, clips, log = console.log }) {
       }
     } catch (err) {
       log(`Weather line failed: ${err.message}`);
-      if (stillOn(c)) await out.play(Buffer.concat([w.unavailable, silence(700, RATE), hint]));
+      if (stillOn(c)) await out.play(Buffer.concat([w.unavailable, silence(700, RATE), hint, silence(6000, RATE)]));
+      if (stillOn(c)) onFinished();
       return;
     }
-    while (stillOn(c)) {
+    for (let readings = 1; stillOn(c) && readings < MAX_READINGS; readings++) {
       await out.play(Buffer.concat([silence(1200, RATE), hint, silence(300, RATE), w['star-hint'], silence(1500, RATE),
         w.intro, silence(400, RATE), pcm]));
     }
+    if (stillOn(c)) { await out.play(silence(1200, RATE)); if (stillOn(c)) onFinished(); }
   }
 
   // The menu, said twice if nothing is dialed (5 s to dial each time), then home by default.

@@ -5,6 +5,8 @@ export const SERVICES = [
     about: 'a British-style speaking clock: the exact time every ten seconds with three pips' },
   { number: '234', id: 'weather_line', name: 'the weather line',
     about: 'a recorded-style forecast for home or anywhere else: now, tonight and tomorrow' },
+  { number: '235', id: 'news_line', name: 'the news line',
+    about: 'the news in brief, about a minute, from a few chosen news services' },
   { number: '345', id: 'home_line', name: 'the home line',
     about: 'the house porter, a quick way to work the household controls' },
   { number: '101', id: 'echo_test', name: 'the echo test line',

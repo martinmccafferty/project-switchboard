@@ -36,6 +36,8 @@
   .group-head { display: flex; justify-content: space-between; align-items: center; }
   .group-head strong { font-size: 16px; }
   .devname { font-size: 12px; color: #6c604e; }
+  .feed { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-top: 8px; align-items: center; }
+  @media (max-width: 560px) { .feed { grid-template-columns: 1fr auto; } .feed input.url { grid-column: 1 / -1; grid-row: 2; } }
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #1f1b17; padding: 12px 16px; display: flex; justify-content: center; }
   .bar div { width: 100%; max-width: 640px; display: flex; align-items: center; gap: 12px; }
   #message { color: var(--ivory); font-size: 14px; flex: 1; }
@@ -74,6 +76,12 @@
     <div id="groups"></div>
     <p><button id="add">+ Add a group</button></p>
     <div id="devices-note" class="hint"></div>
+  </section>
+  <section>
+    <h2>News line (235)</h2>
+    <p class="sub">The news services the bulletin is drawn from: RSS feeds, up to ten. A local station's feed makes it feel like home.</p>
+    <div id="feeds"></div>
+    <p><button id="add-feed">+ Add a feed</button></p>
   </section>
 </main>
 <div class="bar"><div><span id="message"></span><button class="primary" id="save">Save</button></div></div>

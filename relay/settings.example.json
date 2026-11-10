@@ -59,5 +59,21 @@
         ]
       }
     ]
+  },
+  "news": {
+    "feeds": [
+      {
+        "name": "BBC News, world",
+        "url": "https://feeds.bbci.co.uk/news/world/rss.xml"
+      },
+      {
+        "name": "NPR News",
+        "url": "https://feeds.npr.org/1001/rss.xml"
+      },
+      {
+        "name": "Your local station",
+        "url": "https://example.com/local-news.rss"
+      }
+    ]
   }
 }

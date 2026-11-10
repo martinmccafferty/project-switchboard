@@ -14,6 +14,7 @@ import { speakingClock } from './clock.mjs';
 import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
 import { homeLine } from './homeline.mjs';
+import { newsCall } from './newsline.mjs';
 import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
@@ -29,7 +30,7 @@ const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a kno
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
 const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
-const SERVICE_LINES = new Set(['clock', 'weather', 'home']); // lines that # or 0 leaves for the operator
+const SERVICE_LINES = new Set(['clock', 'weather', 'home', 'news']); // lines that # or 0 leaves for the operator
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -44,7 +45,10 @@ for (const op of fs.readdirSync('clips', { withFileTypes: true }).filter((d) => 
 // US call-progress tones as sample generators.
 const tones = {
   dial: (n) => 0.25 * (Math.sin(2 * Math.PI * 350 * n / RATE) + Math.sin(2 * Math.PI * 440 * n / RATE)) / 2,
+  // Fast busy (reorder): 480 + 620 Hz, a quarter second on, a quarter second off.
+  reorder: (n) => ((n / RATE) % 0.5 < 0.25 ? 0.25 * (Math.sin(2 * Math.PI * 480 * n / RATE) + Math.sin(2 * Math.PI * 620 * n / RATE)) / 2 : 0),
 };
+const DEAD_LINE_MS = 10000; // after a line disconnects: silence this long, then fast busy until the caller hangs up
 
 // Sends audio to one phone at real-time pace: queued clips/speech first, otherwise a tone, otherwise nothing.
 class Outbound {
@@ -114,7 +118,7 @@ function phoneLine(ws, from) {
   function deliverReminder(reminder) {
     state = 'connected'; connectedTo = 'operator'; out.setTone(null);
     status(`Reminder call: ${reminder.message}`);
-    call = operatorCall({ out, clips, status, onTransfer: transfer, opening: {
+    call = operatorCall({ out, clips, status, onTransfer: transfer, onIdle: disconnect, opening: {
       text: `Hello, this is the operator, ringing with your reminder: ${reminder.message}.`,
       context: `You rang the caller to deliver a reminder they set earlier: "${reminder.message}" (it was due ${sayWhen(reminder.dueAt)}). `
         + "You've already said: \"Hello, this is the operator, ringing with your reminder.\" plus the reminder itself. "
@@ -132,21 +136,24 @@ function phoneLine(ws, from) {
     }
     if (number === '0') {
       connectedTo = 'operator'; status('Operator');
-      call = operatorCall({ out, clips, status, onTransfer: transfer });
+      call = operatorCall({ out, clips, status, onTransfer: transfer, onIdle: disconnect });
     } else if (number === '911') {
       connectedTo = 'announcement'; status('911: emergency notice');
       for (let i = 0; i < 2 && state === 'connected'; i++) await out.play(clips.doris['no-emergency']);
     } else if (number === '123') {
       connectedTo = 'clock'; status('Speaking clock (# for the operator)');
       const id = lineId;
-      speakingClock({ out, clips, isLive: () => id === lineId && connectedTo === 'clock' })
+      speakingClock({ out, clips, isLive: () => id === lineId && connectedTo === 'clock', onFinished: disconnect })
         .catch((err) => console.log(`Speaking clock failed: ${err.message}`));
     } else if (number === '234') {
       connectedTo = 'weather'; status('Weather line: 1 home, 2 elsewhere, # operator');
-      call = weatherCall({ out, clips, log: (t) => status(t) });
+      call = weatherCall({ out, clips, log: (t) => status(t), onFinished: disconnect });
     } else if (number === '345') {
       connectedTo = 'home'; status('Home line (# for the operator)');
-      call = operatorCall({ out, clips, status, line: homeLine, onTransfer: transfer });
+      call = operatorCall({ out, clips, status, line: homeLine, onTransfer: transfer, onIdle: disconnect });
+    } else if (number === '235') {
+      connectedTo = 'news'; status('News line (# for the operator)');
+      call = newsCall({ out, clips, log: (t) => status(t), onFinished: disconnect });
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -163,6 +170,15 @@ function phoneLine(ws, from) {
     const from = connectedTo === 'home' ? 'Porter' : 'Operator';
     call?.hangUp(); call = null; connectedTo = null; status(`${from} put the call through to ${number}`);
     connect(number);
+  }
+
+  // The far end has finished (the news line): a click, a dead line, then fast busy until the caller hangs up.
+  function disconnect() {
+    if (state !== 'connected') return;
+    call?.hangUp(); call = null; connectedTo = 'dead'; status('Line disconnected (hang up to dial again)');
+    const id = lineId;
+    out.play(plugClick(RATE));
+    setTimeout(() => { if (id === lineId && connectedTo === 'dead') out.setTone('reorder'); }, DEAD_LINE_MS);
   }
 
   function onDigit(d) {

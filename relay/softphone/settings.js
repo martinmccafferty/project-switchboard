@@ -81,6 +81,17 @@ function refreshOffers() {
   }
 }
 
+// --- News feeds
+function feedRow(f = {}) {
+  const name = el('input', { type: 'text', value: f.name ?? '', placeholder: 'e.g. WRAL, Raleigh' });
+  const url = el('input', { type: 'text', value: f.url ?? '', placeholder: 'https://… (RSS feed address)', className: 'url' });
+  const remove = el('button', { className: 'quiet', textContent: 'Remove' });
+  const row = el('div', { className: 'feed' }, name, url, remove);
+  remove.onclick = () => { row.remove(); changed(); };
+  row.read = () => ({ name: name.value.trim(), url: url.value.trim() });
+  return row;
+}
+
 // --- Load and save
 function read() {
   return {
@@ -90,6 +101,7 @@ function read() {
       transcribeKeywords: list($('keywords').value),
     },
     home: { ...data.home, layout: $('layout').value.trim(), groups: [...document.querySelectorAll('.group')].map((c) => c.read()) },
+    news: { feeds: [...document.querySelectorAll('.feed')].map((r) => r.read()).filter((f) => f.name || f.url) },
   };
 }
 async function save() {
@@ -104,6 +116,7 @@ async function load() {
   data = await (await fetch('/api/settings')).json();
   fillHousehold(data.household ?? {});
   $('layout').value = data.home?.layout ?? '';
+  $('feeds').replaceChildren(...(data.news?.feeds ?? []).map(feedRow));
   try {
     const res = await fetch('/api/devices'); if (!res.ok) throw new Error((await res.json()).error);
     devices = await res.json();
@@ -115,6 +128,7 @@ async function load() {
 
 $('check').onclick = checkLocation;
 $('add').onclick = () => { const c = groupCard({}); $('groups').append(c); refreshOffers(); c.querySelector('input').focus(); changed(); };
+$('add-feed').onclick = () => { const r = feedRow(); $('feeds').append(r); r.querySelector('input').focus(); changed(); };
 $('save').onclick = save;
 document.addEventListener('input', changed);
 document.addEventListener('change', changed);

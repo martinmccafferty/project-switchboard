@@ -63,7 +63,10 @@ function stroke(clips, strokeMs, lengthMs, speechAt) {
 }
 
 // Plays the clock on a line until isLive() turns false. out.play queues audio at real-time pace.
-export async function speakingClock({ out, clips, isLive }) {
+// After MAX_STROKES time announcements the line disconnects (onFinished), so a forgotten handset or speaker
+// doesn't run the clock for ever (Martin, T-034).
+const MAX_STROKES = Number(process.env.CLOCK_MAX_STROKES) || 15;
+export async function speakingClock({ out, clips, isLive, onFinished = () => {} }) {
   const c = clips.clock;
   // First stroke: the next ten-second mark there's room for, with the time spoken just before its pips (not
   // straight away and then a long silence). If the wait is long enough, the operator hint fills it first.
@@ -81,20 +84,23 @@ export async function speakingClock({ out, clips, isLive }) {
   }
   // Keep two strokes queued, so the line never runs dry between them (that would let the timing slip).
   // Three strokes, then a ten-second cycle that says how to reach the operator (no pips), and round again.
-  let count = 1;
+  let count = 1; let strokes = 1;
   const next = () => {
     strokeMs += 10000;
     if (count++ % (STROKES_BETWEEN_HINTS + 1) === STROKES_BETWEEN_HINTS) {
       const hint = Buffer.alloc(bytesAt(10000)); c.operator.copy(hint, bytesAt(800)); return hint;
     }
+    strokes++;
     return stroke(c, strokeMs, 10000, 500);
   };
   const queued = [out.play(first), out.play(next())];
-  while (isLive()) {
+  while (isLive() && strokes < MAX_STROKES) {
     await queued.shift();
     if (!isLive()) break;
     queued.push(out.play(next()));
   }
+  await Promise.all(queued);
+  if (isLive()) onFinished();
 }
 
 // --- Rendering the clips (run this file directly).

@@ -24,6 +24,8 @@ const CLIPS = {
     'echo-test': { text: "Echo test line. Speak, and you'll hear yourself." },
     // When Claude can't be reached at all, so the caller never sits in silence.
     'line-trouble': { text: "I'm terribly sorry, we're having some trouble on the line. Could you try me again in a moment?" },
+    // Nobody has spoken for a minute (T-034).
+    'idle-goodbye': { text: "I'll clear the line now. Just dial zero whenever you need me. Goodbye." },
     ...holdClips,
   },
   ethel: {
@@ -35,6 +37,7 @@ const CLIPS = {
     connecting: { text: 'One moment, connecting you.' },
     ...Object.fromEntries(Object.entries(toolAnnouncements).map(([tool, text]) => [`announce-${tool}`, { text }])),
     ...holdClips,
+    'idle-goodbye': { text: "I'll clear the line now. Just dial zero whenever you need me. Goodbye." },
   },
 };
 

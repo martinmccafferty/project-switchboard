@@ -13,13 +13,19 @@ const str = (v, max = 200) => typeof v === 'string' && v.length <= max;
 const strList = (v, max = 40) => Array.isArray(v) && v.length <= max && v.every((x) => str(x, 80));
 
 // Returns an error message, or null if the settings are sound.
-function check({ household: h, home }) {
+function check({ household: h, home, news }) {
   if (!h || !home) return 'Settings need a household and a home section.';
   if (!str(h.location, 120) || !h.location.trim()) return 'Home location is needed.';
   try { new Intl.DateTimeFormat('en-US', { timeZone: h.timezone }); } catch { return `Unknown time zone "${h.timezone}".`; }
   if (!['fahrenheit', 'celsius'].includes(h.temperatureUnit)) return 'Temperature unit must be Fahrenheit or Celsius.';
   if (!strList(h.transcribeKeywords, 100)) return 'Words to expect must be a list of short words.';
   if (!str(home.layout ?? '', 400) || !Array.isArray(home.groups) || home.groups.length > 30) return 'The rooms section is malformed.';
+  const feeds = news?.feeds ?? [];
+  if (!Array.isArray(feeds) || feeds.length > 10) return 'The news line takes up to ten feeds.';
+  for (const f of feeds) {
+    if (!str(f.name, 60) || !f.name.trim()) return 'Each news feed needs a name.';
+    if (!str(f.url, 300) || !/^https?:\/\/\S+$/.test(f.url)) return `"${f.name}" needs a web address starting http.`;
+  }
   const ids = home.groups.map((g) => g.id);
   for (const g of home.groups) {
     if (!/^[a-z0-9_]{1,40}$/.test(g.id ?? '')) return `Group id "${g.id}" must be lowercase letters, digits or _.`;
@@ -57,7 +63,7 @@ export async function handleSettingsApi(req, res, { onSaved = () => {} } = {}) {
       const problem = check(next);
       if (problem) return send(res, 400, { error: problem }), true;
       if (!(await geocode(next.household.location))) return send(res, 400, { error: `Couldn't find "${next.household.location}".` }), true;
-      const saved = updateSettings({ household: next.household, home: next.home });
+      const saved = updateSettings({ household: next.household, home: next.home, news: { feeds: next.news?.feeds ?? [] } });
       onSaved(saved);
       return send(res, 200, saved), true;
     }

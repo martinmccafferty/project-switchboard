@@ -18,8 +18,14 @@ function fromEnv() {
       transcribeKeywords: (process.env.TRANSCRIBE_KEYWORDS || '').split(',').map((k) => k.trim()).filter(Boolean),
     },
     home: { provider: 'switchbot', groups: [] },
+    news: { feeds: DEFAULT_FEEDS },
   };
 }
+// The news line's sources until a household chooses its own (a local station's feed is a good addition).
+export const DEFAULT_FEEDS = [
+  { name: 'BBC News, world', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
+  { name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
+];
 
 function save(data) {
   fs.mkdirSync(path.dirname(FILE), { recursive: true });

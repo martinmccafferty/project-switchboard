@@ -69,6 +69,11 @@
       "text": "Right away.",
       "click": false,
       "seconds": 0.85
+    },
+    "idle-goodbye": {
+      "text": "I'll clear the line now. Just dial zero whenever you need me. Goodbye.",
+      "click": false,
+      "seconds": 5.45
     }
   },
   "ethel": {
@@ -131,6 +136,11 @@
       "text": "Right away.",
       "click": false,
       "seconds": 1.2
+    },
+    "idle-goodbye": {
+      "text": "I'll clear the line now. Just dial zero whenever you need me. Goodbye.",
+      "click": false,
+      "seconds": 5.24
     }
   }
 }

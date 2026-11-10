@@ -17,6 +17,7 @@ export const PIECES = {
   'announce-blinds_status': 'Let me look.',
   'line-trouble': "Sorry, the home line is out of order just now. Dial zero for the operator.",
   'announce-connect_operator': 'Very good.',
+  'idle-goodbye': "I'll clear the line now. Good day.",
 };
 
 const persona = () => {

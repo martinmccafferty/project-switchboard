@@ -18,6 +18,9 @@ const HOLD_MS = Number(process.env.HOLD_MS) || 2500;
 // Cap on how long the semantic detector may hold after the caller goes quiet (it held ~2.6 s after statements).
 const MAX_SILENCE_MS = Number(process.env.MAX_SILENCE_MS) || 1500; // the tick plays during lookups; otherwise only if a plain reply is this slow
 const PHONE_BUFFER_MS = 400;
+// Nobody has spoken for this long while Doris (or the porter) listens: a stored goodbye, and the line is cleared,
+// so a forgotten handset or speakerphone isn't left on for ever (Martin, T-034).
+const IDLE_MS = Number(process.env.IDLE_HANGUP_MS) || 60000;
 // Titles and abbreviations whose period doesn't end a sentence ("Mrs. Pruitt" was voiced as two pieces with a
 // pause between them, T-021). A single capital letter counts too ("J. Edgar").
 const NOT_AN_END = /(?:^|\s)(?:Mr|Mrs|Ms|Dr|St|Mt|Jr|Sr|Prof|Rev|Capt|Lt|Col|Gen|Sgt|Gov|Sen|Rep|No|vs|[A-Z])\.$/;
@@ -72,7 +75,8 @@ import { takeMissed } from './reminders.mjs';
 // line: who answers. Doris by default (Ethel takes over if her voice fails); the 345 home line passes its own
 // { name, clipSet, speaker(), agent } (D-40). Clips come from clips[clipSet]: greeting, hold-*, announce-*.
 const DORIS = { name: 'Doris', clipSet: 'doris', speaker: () => operatorSpeaker('doris'), failover: 'ethel' };
-export function operatorCall({ out, clips, status, opening = null, onTransfer = () => {}, line = DORIS }) {
+// onIdle(): nobody spoke for IDLE_MS; the goodbye has played and the exchange disconnects the line.
+export function operatorCall({ out, clips, status, opening = null, onTransfer = () => {}, onIdle = () => {}, line = DORIS }) {
   const isDoris = line === DORIS;
   let transferTo = null; // set by connect_call; acted on once Doris has finished speaking
   let active = true; let listening = false;
@@ -131,8 +135,18 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
     } else {
       await out.play(clips[line.clipSet].greeting);
     }
-    if (active) { listening = true; status(`${line.name} is listening`); }
+    if (active) { listening = true; listeningSince = Date.now(); status(`${line.name} is listening`); }
   })();
+
+  let listeningSince = 0;
+  const idleCheck = setInterval(async () => {
+    if (!active || !listening || Date.now() - listeningSince < IDLE_MS || Date.now() - lastVoicedAt < 3000) return;
+    listening = false; clearInterval(idleCheck);
+    console.log(`${line.name}: nobody spoke for ${IDLE_MS / 1000} s; clearing the line`);
+    const goodbye = clips[voiceName]['idle-goodbye'];
+    if (goodbye) await out.play(goodbye);
+    if (active) onIdle();
+  }, 1000);
 
   // getTranscript() resolves to { text, live }.
   async function handleTurn(getTranscript) {
@@ -236,7 +250,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
     }
     await new Promise((r) => setTimeout(r, PHONE_BUFFER_MS));
     if (active && transferTo) { const number = transferTo; transferTo = null; onTransfer(number); return; }
-    if (active) { detector.reset(); listener.resume(); listening = true; status(`${line.name} is listening`); }
+    if (active) { detector.reset(); listener.resume(); listening = true; listeningSince = Date.now(); status(`${line.name} is listening`); }
   }
 
   return {
@@ -260,7 +274,7 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
       if (utterance) handleTurn(() => listener.finish(utterance));
     },
     hangUp() {
-      active = false; listening = false; out.setFiller(null); listener.close();
+      active = false; listening = false; clearInterval(idleCheck); out.setFiller(null); listener.close();
       voice.then((v) => v?.close()).catch(() => {});
     },
   };
