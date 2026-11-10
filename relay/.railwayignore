@@ -1,0 +1,10 @@
+# Kept off Railway: secrets (Railway has its own variables), local data (Railway has its own volume),
+# and generated audio folders the relay doesn't read at run time. No *.wav pattern: Railway applies it at every
+# depth, which dropped the stored clips (T-038).
+.env*
+!*.example
+data/
+node_modules/
+audition/
+roundtrip/
+cues/

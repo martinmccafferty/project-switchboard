@@ -14,7 +14,7 @@ const setStatus = (text) => { statusEl.textContent = text; };
 
 // The line to the exchange; reconnects by itself if the relay restarts.
 function connect() {
-  ws = new WebSocket(`ws://${location.host}/phone`);
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/phone`); // wss when served over https (Railway)
   ws.binaryType = 'arraybuffer';
   ws.onopen = () => { log('Connected to the switchboard'); if (!offHook) setStatus('On hook'); };
   ws.onclose = () => { setStatus('No line (relay not running?)'); setTimeout(connect, 2000); };

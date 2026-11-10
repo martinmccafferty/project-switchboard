@@ -3,7 +3,7 @@
 //   PUT  /api/settings          replace them (checked first, so a bad save can't break the phone)
 //   GET  /api/place?q=...       look a place up ("Morrisville, NC" -> full name and time zone)
 //   GET  /api/devices           the SwitchBot account's blinds and curtains (read-only)
-// No sign-in yet: the relay is only reachable on the home network. Sign-in must come before Railway.
+// Only signed-in household members reach these (auth.mjs, D-45).
 import { settings, updateSettings } from './settings.mjs';
 import { geocode } from './home.mjs';
 import { listDevices } from './switchbot.mjs';
@@ -13,13 +13,18 @@ const str = (v, max = 200) => typeof v === 'string' && v.length <= max;
 const strList = (v, max = 40) => Array.isArray(v) && v.length <= max && v.every((x) => str(x, 80));
 
 // Returns an error message, or null if the settings are sound.
-function check({ household: h, home, news }) {
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function check({ household: h, home, news, access }) {
   if (!h || !home) return 'Settings need a household and a home section.';
   if (!str(h.location, 120) || !h.location.trim()) return 'Home location is needed.';
   try { new Intl.DateTimeFormat('en-US', { timeZone: h.timezone }); } catch { return `Unknown time zone "${h.timezone}".`; }
   if (!['fahrenheit', 'celsius'].includes(h.temperatureUnit)) return 'Temperature unit must be Fahrenheit or Celsius.';
   if (!strList(h.transcribeKeywords, 100)) return 'Words to expect must be a list of short words.';
   if (!str(home.layout ?? '', 400) || !Array.isArray(home.groups) || home.groups.length > 30) return 'The rooms section is malformed.';
+  const emails = access?.emails ?? [];
+  if (!Array.isArray(emails) || emails.length > 20) return 'Up to twenty people can sign in.';
+  const bad = emails.find((e) => !str(e, 120) || !EMAIL.test(e));
+  if (bad !== undefined) return `"${bad}" isn't an email address.`;
   const feeds = news?.feeds ?? [];
   if (!Array.isArray(feeds) || feeds.length > 10) return 'The news line takes up to ten feeds.';
   for (const f of feeds) {
@@ -63,7 +68,8 @@ export async function handleSettingsApi(req, res, { onSaved = () => {} } = {}) {
       const problem = check(next);
       if (problem) return send(res, 400, { error: problem }), true;
       if (!(await geocode(next.household.location))) return send(res, 400, { error: `Couldn't find "${next.household.location}".` }), true;
-      const saved = updateSettings({ household: next.household, home: next.home, news: { feeds: next.news?.feeds ?? [] } });
+      const saved = updateSettings({ household: next.household, home: next.home, news: { feeds: next.news?.feeds ?? [] },
+        access: { emails: (next.access?.emails ?? []).map((e) => e.trim().toLowerCase()) } });
       onSaved(saved);
       return send(res, 200, saved), true;
     }

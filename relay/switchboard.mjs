@@ -13,6 +13,7 @@ import { operatorCall } from './call-operator.mjs';
 import { speakingClock } from './clock.mjs';
 import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
+import { handleAuth, phoneAllowed, checkAuthConfig } from './auth.mjs';
 import { homeLine } from './homeline.mjs';
 import { newsCall } from './newsline.mjs';
 import { directoryCall, prepareDirectory, directoryLines } from './directory.mjs';
@@ -20,6 +21,7 @@ import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
 const PORT = Number(process.env.PORT) || 8080;
+checkAuthConfig(); // sign-in with Google (D-45); stops here if a public relay would be open
 const RATE = 16000;
 const FRAME_SAMPLES = 320;                 // 20 ms
 const FRAME_BYTES = FRAME_SAMPLES * 2;
@@ -44,6 +46,7 @@ for (const op of fs.readdirSync('clips', { withFileTypes: true }).filter((d) => 
     clips[op.name][f.replace('.wav', '')] = wavToPcm(fs.readFileSync(`clips/${op.name}/${f}`));
   }
 }
+console.log(`Clips: ${Object.entries(clips).map(([k, v]) => `${k} ${Object.keys(v).length}`).join(', ') || 'none found'}`);
 
 // US call-progress tones as sample generators.
 const tones = {
@@ -61,7 +64,11 @@ class Outbound {
     this.timer = setInterval(() => this.tick(), 10);
   }
   // Queues 16 kHz PCM; resolves when it has all been sent.
-  play(pcm) { return new Promise((resolve) => { this.queue.push({ pcm, offset: 0, resolve }); }); }
+  // A missing clip is skipped with a note, rather than taking the whole exchange down (T-038).
+  play(pcm) {
+    if (!Buffer.isBuffer(pcm)) { console.log(`[${now()}] A clip is missing; skipped`); return Promise.resolve(); }
+    return new Promise((resolve) => { this.queue.push({ pcm, offset: 0, resolve }); });
+  }
   clear() { for (const item of this.queue) item.resolve(); this.queue = []; }
   setTone(name) { this.tone = name ? tones[name] : null; this.toneN = 0; }
   // Background sound looped whenever nothing is queued (the waiting tick, D-20); null to stop.
@@ -275,6 +282,8 @@ setInterval(() => {
 // Static files for the browser softphone.
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const server = http.createServer(async (req, res) => {
+  if (req.url === '/healthz') { res.writeHead(200).end('ok'); return; } // Railway's health check; says nothing
+  if (await handleAuth(req, res)) return; // sign-in pages, or turned away for not being signed in
   // The settings page's API; after a save, the weather menu is re-voiced if the home location changed.
   if (await handleSettingsApi(req, res, { onSaved: () => prepareWeatherLine().catch(() => {}) })) return;
   const name = req.url === '/' ? 'index.html' : req.url.split('?')[0] === '/settings' ? 'settings.html' : path.basename(req.url.split('?')[0]);
@@ -283,7 +292,8 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
   fs.createReadStream(file).pipe(res);
 });
-const wss = new WebSocketServer({ server, path: '/phone' });
+// A signed-in browser, or the real phone with its PHONE_TOKEN; anyone else is refused before the line opens.
+const wss = new WebSocketServer({ server, path: '/phone', verifyClient: ({ req }) => phoneAllowed(req) });
 wss.on('connection', (ws, req) => {
   const from = req.socket.remoteAddress.replace('::ffff:', '');
   console.log(`[${now()}] Phone connected from ${from}`);

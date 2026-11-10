@@ -102,6 +102,7 @@ function read() {
     },
     home: { ...data.home, layout: $('layout').value.trim(), groups: [...document.querySelectorAll('.group')].map((c) => c.read()) },
     news: { feeds: [...document.querySelectorAll('.feed')].map((r) => r.read()).filter((f) => f.name || f.url) },
+    access: { emails: list($('emails').value) },
   };
 }
 async function save() {
@@ -117,6 +118,8 @@ async function load() {
   fillHousehold(data.household ?? {});
   $('layout').value = data.home?.layout ?? '';
   $('feeds').replaceChildren(...(data.news?.feeds ?? []).map(feedRow));
+  $('emails').value = (data.access?.emails ?? []).join(', ');
+  fetch('/api/me').then((r) => (r.ok ? r.json() : null)).then((me) => { if (me) $('me').textContent = me.email; }).catch(() => {});
   try {
     const res = await fetch('/api/devices'); if (!res.ok) throw new Error((await res.json()).error);
     devices = await res.json();

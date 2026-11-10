@@ -12,7 +12,8 @@
     "roundtrip": "node --env-file-if-exists=.env roundtrip.mjs",
     "clips": "node --env-file-if-exists=.env clips.mjs",
     "cues": "node --env-file-if-exists=.env cue-demo.mjs",
-    "switchboard": "node --env-file-if-exists=.env switchboard.mjs"
+    "switchboard": "node --env-file-if-exists=.env switchboard.mjs",
+    "deploy": "railway up --detach --no-gitignore"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
