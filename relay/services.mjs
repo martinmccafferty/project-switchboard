@@ -9,6 +9,8 @@ export const SERVICES = [
     about: 'the news in brief, about a minute, from a few chosen news services' },
   { number: '345', id: 'home_line', name: 'the home line',
     about: 'the house porter, a quick way to work the household controls' },
+  { number: '411', id: 'directory', name: 'the directory',
+    about: 'reads out all these numbers; star at dial tone reaches it too' },
   { number: '101', id: 'echo_test', name: 'the echo test line',
     about: 'lets the caller hear their own voice to test the line' },
 ];

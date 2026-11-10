@@ -15,6 +15,7 @@ import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
 import { homeLine } from './homeline.mjs';
 import { newsCall } from './newsline.mjs';
+import { directoryCall, prepareDirectory, directoryLines } from './directory.mjs';
 import { serviceNumbers } from './services.mjs';
 import { dueReminders, markDelivered, markUnanswered, sayWhen } from './reminders.mjs';
 
@@ -25,12 +26,14 @@ const FRAME_BYTES = FRAME_SAMPLES * 2;
 const LEAD_MS = 100;                       // how far ahead of real time audio is sent (phone keeps a playout buffer, D-16)
 // A number is complete when the caller stops dialing (dial pace varies; the real dial is rotary-style).
 // Timings are first guesses, to tune on the real dial in Phase 4.
-const KNOWN_NUMBERS = new Set([...serviceNumbers, '911']);                    // grows with the service lines (D-26)
+// Emergency numbers: the US 911, the British 999 (on Martin's dial) and the international 112 (D-44).
+const EMERGENCY = new Set(['911', '999', '112']);
+const KNOWN_NUMBERS = new Set([...serviceNumbers, ...EMERGENCY]); // grows with the service lines (D-26)
 const SETTLE_MS = Number(process.env.SETTLE_MS) || 1500;          // after a known number, if no further digit
 const DIAL_TIMEOUT_MS = Number(process.env.DIAL_TIMEOUT_MS) || 3500; // after any other digit
 const RING_FOR_MS = Number(process.env.RING_FOR_MS) || 30000; // ring an unanswered reminder this long (five US ring cycles)
 const SWITCHING_MS = 500;                  // the exchange's beat of silence before connecting a dialed number (not 0)
-const SERVICE_LINES = new Set(['clock', 'weather', 'home', 'news']); // lines that # or 0 leaves for the operator
+const SERVICE_LINES = new Set(['clock', 'weather', 'home', 'news', 'directory']); // lines that # or 0 leaves for the operator
 const now = () => new Date().toLocaleTimeString();
 
 // Stored clips (npm run clips), loaded once: clips.doris.greeting etc.
@@ -137,8 +140,8 @@ function phoneLine(ws, from) {
     if (number === '0') {
       connectedTo = 'operator'; status('Operator');
       call = operatorCall({ out, clips, status, onTransfer: transfer, onIdle: disconnect });
-    } else if (number === '911') {
-      connectedTo = 'announcement'; status('911: emergency notice');
+    } else if (EMERGENCY.has(number)) {
+      connectedTo = 'announcement'; status(`${number}: emergency notice`);
       for (let i = 0; i < 2 && state === 'connected'; i++) await out.play(clips.doris['no-emergency']);
     } else if (number === '123') {
       connectedTo = 'clock'; status('Speaking clock (# for the operator)');
@@ -154,6 +157,9 @@ function phoneLine(ws, from) {
     } else if (number === '235') {
       connectedTo = 'news'; status('News line (# for the operator)');
       call = newsCall({ out, clips, log: (t) => status(t), onFinished: disconnect });
+    } else if (number === '411') {
+      connectedTo = 'directory'; status('Directory (a key to connect, # for the operator)');
+      call = directoryCall({ out, log: (t) => status(t), onFinished: disconnect });
     } else if (number === '101') {
       connectedTo = 'echo'; status('Echo test line');
       await out.play(clips.doris['echo-test']);
@@ -188,11 +194,19 @@ function phoneLine(ws, from) {
       lineId++; out.clear(); connectedTo = null; digits = '0'; status('Back to the operator'); connect('0'); return;
     }
     if (state === 'connected' && connectedTo === 'weather') { call?.onDigit(d); return; }
+    // A shortcut key while the directory reads: connect that line (D-43).
+    if (state === 'connected' && connectedTo === 'directory') {
+      const line = /[1-9]/.test(d) ? directoryLines()[Number(d) - 1] : null;
+      if (line) { call?.hangUp(); call = null; lineId++; out.clear(); connectedTo = null; digits = line.number; status(`Directory: ${d} for ${line.name}`); connect(line.number); }
+      return;
+    }
     if (state === 'offhook') { state = 'dialing'; out.setTone(null); }
     if (state !== 'dialing') return;
     digits += d; status(`Dialed ${digits}`);
     clearTimeout(dialTimer);
-    if (digits === '0' || digits.length >= 15) { connect(digits); return; } // 0 = Doris at once (D-17)
+    // 0 = Doris at once (D-17); star at dial tone = the directory at once (D-27, D-43).
+    if (digits === '0' || digits.length >= 15) { connect(digits); return; }
+    if (digits === '*') { connect('411'); return; }
     const wait = KNOWN_NUMBERS.has(digits) ? SETTLE_MS : DIAL_TIMEOUT_MS;
     dialTimer = setTimeout(() => state === 'dialing' && connect(digits), wait);
   }
@@ -277,6 +291,7 @@ wss.on('connection', (ws, req) => {
 });
 server.listen(PORT, () => {
   prepareWeatherLine().catch((err) => console.log(`Weather menu not voiced yet (${err.message}); first caller will wait`));
+  prepareDirectory().catch((err) => console.log(`Directory not voiced yet (${err.message}); first caller will wait`));
   const lan = Object.values(os.networkInterfaces()).flat().filter((a) => a?.family === 'IPv4' && !a.internal).map((a) => a.address);
   console.log(`Switchboard listening on port ${PORT}`);
   console.log(`  Softphone: http://localhost:${PORT}   (phones on the network: ws://${lan[0] ?? 'this-mac'}:${PORT}/phone)`);
