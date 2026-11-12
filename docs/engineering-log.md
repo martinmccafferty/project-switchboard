@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.91)
+**Last updated:** 2026-11-12 (Log v1.92)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -166,6 +166,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-31 | 2 × Silvertel AG1171S line modules received from Symmetry (order #299683). DigiKey support parts due 2026-11-12 (FedEx) | Martin | 2026-11-12 |
 | C-32 | DigiKey order received complete (all 7 lines, nothing backordered): 4 × 1N4004, 2 × 1N4148, 2 × P6KE82A, 2 × 470 µF 16 V (Panasonic EEU-FR1C471), 5 × 0.1 µF (KEMET C320C104K5R5TA), 5 × 0.01 µF (KEMET C410C103Z5U5TA7200). The AG1171s (Braemac packing list: made by Silver Telecom, Newport, UK; date code 2637) are stored on anti-static foam. **All Phase 3 parts in hand** | Martin, photos | 2026-11-12 |
 | C-33 | Base compartment (behind the covered panel, C-22) measures roughly **3 in × 1⅝ in × ~1 in deep (≈ 75 × 40 × 25 mm)** by tape (Martin's photos; to confirm). It is open to the base interior (the dial-board ribbon and a small board are visible through it), so a battery there shares space with the electronics. A separate small recess near the jacks is molded "3.7V", suggesting the casing was designed for an optional 3.7 V cell in some variant | Martin, photos | 2026-11-12 |
+| C-34 | The line cord is a **2-conductor** cord (two wires with clear insulation), so both wires are the line pair (Tip and Ring). Their order doesn't matter: the phone's bridge rectifier (U6, C-16) accepts either polarity. Wires look like fine tinsel/stranded conductors: handle gently | Martin, P-17 | 2026-11-12 |
 
 ---
 
@@ -505,3 +506,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-12 | v1.89 | (claude.ai chat) DigiKey parts received (C-32); Phase 3 complete; Phase 4 starting |
 | 2026-11-12 | v1.90 | (claude.ai chat) Q-21 battery for cordless use: feasible; power-bank route proposed; measure current in Phase 4 |
 | 2026-11-12 | v1.91 | (claude.ai chat) C-33 base compartment measured; Q-21 battery options (2 × 18650) and charge reporting |
+| 2026-11-12 | v1.92 | (claude.ai chat) Photos P-15–P-17 added; C-34 line cord is 2-conductor |

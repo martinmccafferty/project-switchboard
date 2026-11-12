@@ -25,7 +25,10 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-14a | `p14a-esp32-front.jpeg` | ESP32 board front: S3-N16R8 module, antenna, pin labels | 2026-10-30 |
 | P-14b | `p14b-esp32-angle.jpeg` | ESP32 board angled view | 2026-10-30 |
 | P-14c | `p14c-esp32-back.jpeg` | ESP32 board back: USB / COM labels, headers | 2026-10-30 |
+| P-15 | `p15-digikey-parts.png` | DigiKey support parts as received (7 bags) | 2026-11-12 |
+| P-16a–d | `p16a-…`–`p16d-…` | Base compartment and tape measurements (≈ 75 × 40 × 25 mm); "3.7V" recess | 2026-11-12 |
+| P-17 | `p17-line-cord-cut.png` | Line cord cut: 2-conductor cord, jacket stripped | 2026-11-12 |
 
 ## Wanted
 
-Phase 0 photo survey complete. New photos will be added as tests need them.
+New photos are added as the build progresses; they are raw material for the public build guide (D-15). Packing slips are deliberately not stored (they show the home address).
