@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Rotary Phone · Settings</title>
+<title>Number Please · Settings</title>
 <style>
   :root { --ivory: #f3ecdc; --ink: #3b3226; --brass: #b08d57; --panel: #e6dcc6; --line: #cbbd9f; --live: #4f7a3a; --bad: #8a3b2e; }
   * { box-sizing: border-box; }
@@ -50,6 +50,7 @@
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #1f1b17; padding: 12px 16px; display: flex; justify-content: center; }
   .bar div { width: 100%; max-width: 640px; display: flex; align-items: center; gap: 12px; }
   #message { color: var(--ivory); font-size: 14px; flex: 1; }
+  .about { color: #b8ad98; font-size: 13px; text-align: center; margin: 8px 16px 0; }
   #message.bad { color: #f0a08f; }
 </style>
 </head>
@@ -114,6 +115,7 @@
     <textarea id="emails" placeholder="e.g. someone@gmail.com"></textarea>
     <div class="hint">Email addresses, separated by commas.</div>
   </section>
+  <p class="about">Doris, Ethel and the house porter are AI operators. What you say on a call is turned into text and answered by Claude (Anthropic); their voices are made by OpenAI and Google.</p>
 </main>
 <div class="bar"><div><span id="message"></span><button class="primary" id="save">Save</button></div></div>
 <script src="settings.js"></script>

@@ -4,7 +4,7 @@
 // Stored clips:  node --env-file=.env homeline.mjs
 import { serviceSpeaker, renderPieces } from './servicevoice.mjs';
 import { homeAllForPersona, homeControlsSummary } from './switchbot.mjs';
-import { exchangeForPersona } from './services.mjs';
+import { exchangeForPersona, settingsAddress } from './services.mjs';
 import { routineTools, routinesForPersona } from './routines.mjs';
 
 const STYLE = 'A terse, capable British house porter of the 1950s: low, unhurried, polite and brief.';
@@ -57,7 +57,8 @@ ${routinesForPersona() || '- No routines are set up yet.'}
 - "What's on in the house?" means a walk-round: look at the lights and the blinds together, then say briefly,
   room by room, what is on or open. Leave out what is off unless asked.
 - New lights are joined at the home bridge with a pairing code from Google Home; blinds and curtains are added on
-  the settings page. Explain that simply if asked how to add something.`;
+  the settings page. Explain that simply if asked how to add something.
+${settingsAddress()}`;
 };
 
 export const homeLine = {

@@ -32,6 +32,17 @@ export const connectTool = {
   },
 };
 
+// Where the settings page is (D-55): the relay's public address comes from PUBLIC_HOST (configuration, never code),
+// e.g. "numberplease.app", with PUBLIC_HOST_SPOKEN for how to say it ("number please dot app") where the letters run
+// together. Returns a persona line, or '' when it isn't set (a home-network relay).
+export function settingsAddress() {
+  const host = (process.env.PUBLIC_HOST || '').trim().toLowerCase();
+  if (!host) return '';
+  const spoken = `${(process.env.PUBLIC_HOST_SPOKEN || host.replaceAll('.', ' dot ')).trim()} slash settings`;
+  return `- The household's settings page (their town, rooms and devices, routines, who can sign in) is at ${host}/settings. `
+    + `Said aloud: "${spoken}". Give it when asked where to change a setting or add something; offer to say it again slowly.`;
+}
+
 // For the persona: what Doris knows about the lines.
 export const servicesForPersona = SERVICES.map((s) => `${s.name} on ${s.number.split('').join('-')} (${s.about})`).join('; ');
 

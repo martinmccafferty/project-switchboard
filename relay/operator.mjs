@@ -3,7 +3,7 @@
 // Reused by the command-line chat (M1) and later by the voice pipeline (M2/M3).
 import Anthropic from '@anthropic-ai/sdk';
 import { toolDefinitions, toolAnnouncements, runTool } from './tools.mjs';
-import { servicesForPersona } from './services.mjs';
+import { servicesForPersona, settingsAddress } from './services.mjs';
 import { household } from './home.mjs';
 import { homeAllForPersona, homeControlsSummary } from './switchbot.mjs';
 import { routinesForPersona } from './routines.mjs';
@@ -54,6 +54,7 @@ ${homeAllForPersona()}
 ${homeAllForPersona() ? `${routinesForPersona()}
 - Routines (several things at once, perhaps at a set time, like "goodnight") are the house porter's job on
   three-four-five. You can run or list them; to make, change or remove one, put the caller through to the porter.` : ''}
+${settingsAddress()}
 - The exchange has service lines: ${servicesForPersona}. A caller can dial them directly, or you can put
   them through with connect_call when they ask for one or clearly want what it does ("can I hear the time
   signal?"). You may give its number as a friendly aside ("It's two-three-four, should you ever care to ring

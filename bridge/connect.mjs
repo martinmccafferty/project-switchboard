@@ -131,7 +131,8 @@ let ws = null; let wait = 1000; let sendTimer = null;
 function changed() { clearTimeout(sendTimer); sendTimer = setTimeout(() => send({ type: 'lights', lights: report() }), 300); }
 const send = (m) => { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
 function connect() {
-  ws = new WebSocket(URL_, { headers: { authorization: `Bearer ${TOKEN}` } });
+  const me = new WebSocket(URL_, { headers: { authorization: `Bearer ${TOKEN}` } });
+  ws = me;
   ws.on('open', () => { wait = 1000; console.log(`[${now()}] Connected to the relay (${new URL(URL_).host})`); send({ type: 'lights', lights: report() }); });
   ws.on('message', async (data) => {
     let m; try { m = JSON.parse(data); } catch { return; }
@@ -139,13 +140,27 @@ function connect() {
     const lights = await run(m);
     send({ type: 'result', id: m.id, ok: true, lights });
   });
-  ws.on('unexpected-response', (_, res) => console.log(`[${now()}] The relay refused the bridge (${res.statusCode}); check BRIDGE_TOKEN`));
+  // An answer that isn't the connection (a 401, or a 502 while Railway restarts the relay): end this attempt so the
+  // close handler tries again (T-049: without destroy() the attempt hung and the bridge never retried).
+  ws.on('unexpected-response', (req, res) => {
+    console.log(`[${now()}] The relay answered ${res.statusCode}${res.statusCode === 401 ? ': check BRIDGE_TOKEN' : ' (it may be restarting)'}`);
+    req.destroy(); res.destroy();
+    retry(); // the close event doesn't come for a refused handshake, so retry from here
+  });
   ws.on('error', () => {}); // the close handler reconnects
   ws.on('close', (code) => {
+    if (ws !== me) return; // an abandoned attempt; a newer one is already under way
     if (code === 4001) { console.log(`[${now()}] Another bridge has taken over; stopping this one`); process.exit(0); }
-    console.log(`[${now()}] Lost the relay; trying again in ${wait / 1000} s`);
-    setTimeout(connect, wait); wait = Math.min(wait * 2, 30_000);
+    retry();
   });
+}
+// One retry per failed attempt, however it failed, backing off from 1 s to 30 s.
+let retrying = false;
+function retry() {
+  if (retrying) return;
+  retrying = true;
+  console.log(`[${now()}] Lost the relay; trying again in ${wait / 1000} s`);
+  setTimeout(() => { retrying = false; connect(); }, wait); wait = Math.min(wait * 2, 30_000);
 }
 connect();
 process.on('SIGINT', async () => { ws?.close(); await controller.close(); process.exit(0); });
