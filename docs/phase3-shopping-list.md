@@ -18,6 +18,6 @@ Small parts are bought in spares because they cost pennies and shipping is the r
 
 ## Not buying (and why)
 - **Audio codec board: deferred (D-14).** First try the ESP32-S3's built-in converters (ADC in, PDM/sigma-delta out) at telephone quality. If quality isn't good enough for speech recognition, buy a codec then.
-- **RJ11 breakout:** use a spare phone cord, cut and stripped, for the breadboard end (check the cable drawer first).
+- **RJ11 breakout:** cut the phone's own line cord (D-53 in the log), keeping a ~50 cm plug end.
 - **Resistors, jumpers, breadboard:** already owned (starter kit).
 - **Power supply:** the Mac's USB-C port is fine on the bench; a 5 V / 2 A USB-C charger is needed only for the final install.
