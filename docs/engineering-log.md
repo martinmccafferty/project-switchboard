@@ -1,8 +1,8 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.88)
-**Current phase:** Phase 5 — relay live on Railway at **numberplease.app** (104spaniel.com retired, T-048); Phase 4 (line module) starting: AG1171s received, DigiKey parts due 2026-11-12
+**Last updated:** 2026-11-12 (Log v1.89)
+**Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
 >
@@ -164,6 +164,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-29 | The Cync bulbs use **Matter over Wi-Fi**, not Thread, so any controller on the home Wi-Fi can reach them without a Thread border router | Martin | 2026-11-12 |
 | C-30 | The two thermostats are linked into Google Home through the SmartRent service, and are sometimes hard to control even from the Google Home app; Martin prefers the phone only reads them (fits T-047) | Martin | 2026-11-12 |
 | C-31 | 2 × Silvertel AG1171S line modules received from Symmetry (order #299683). DigiKey support parts due 2026-11-12 (FedEx) | Martin | 2026-11-12 |
+| C-32 | DigiKey order received complete (all 7 lines, nothing backordered): 4 × 1N4004, 2 × 1N4148, 2 × P6KE82A, 2 × 470 µF 16 V (Panasonic EEU-FR1C471), 5 × 0.1 µF (KEMET C320C104K5R5TA), 5 × 0.01 µF (KEMET C410C103Z5U5TA7200). The AG1171s (Braemac packing list: made by Silver Telecom, Newport, UK; date code 2637) are stored on anti-static foam. **All Phase 3 parts in hand** | Martin, photos | 2026-11-12 |
 
 ---
 
@@ -281,7 +282,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | 0 | Photo survey & part identification; set up this log and repo | None | **Complete** |
 | 1 | Simple unpowered checks to confirm the phone is a standard tone-dialing analog phone | None | Closed (D-08): goal met by Phase 0 evidence; T-001 showed open circuit at meter voltage |
 | 2 | ESP32 bring-up: flash, Wi-Fi, test audio streaming to a relay; choose toolchain | None | **Complete** (T-002–T-006) |
-| 3 | **Decision gate**: commit architecture; order line module (codec deferred, D-14) | Yes | **Ordered** 2026-11-07; awaiting delivery |
+| 3 | **Decision gate**: commit architecture; order line module (codec deferred, D-14) | Yes | **Complete**: all parts received 2026-11-12 |
 | 4 | Line emulation: off-hook detection, dial tone, DTMF decoding, ringing the bell | — | Not started |
 | 5 | AI conversation through the handset | — | Not started |
 | 6 | Hands-free with echo cancellation | — | Not started |
@@ -499,3 +500,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-12 | v1.86 | (claude.ai chat) D-55: product name Number Please, numberplease.app registered; Q-20 answered |
 | 2026-11-12 | v1.87 | T-048 the relay moves to numberplease.app (Railway domain, Cloudflare, Google redirect URIs; Doris and the porter give the settings address from `PUBLIC_HOST`); 104spaniel.com kept until retired |
 | 2026-11-12 | v1.88 | D-56 pages renamed "Number Please"; sign-in tagline; a plain AI disclosure at the foot of Settings; 104spaniel.com retired (T-048); T-049 the bridge retries after a 502 |
+| 2026-11-12 | v1.89 | (claude.ai chat) DigiKey parts received (C-32); Phase 3 complete; Phase 4 starting |
