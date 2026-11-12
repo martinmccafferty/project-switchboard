@@ -6,10 +6,12 @@ import { serviceSpeaker, renderPieces } from './servicevoice.mjs';
 import { homeAllForPersona, homeControlsSummary } from './switchbot.mjs';
 import { exchangeForPersona, settingsAddress } from './services.mjs';
 import { routineTools, routinesForPersona } from './routines.mjs';
+import { shoppingForPersona } from './shopping.mjs';
 
 const STYLE = 'A terse, capable British house porter of the 1950s: low, unhurried, polite and brief.';
 const MODEL = process.env.HOME_LINE_MODEL || 'claude-haiku-5-5';
-const HOME_TOOLS = ['move_blinds', 'blinds_status', 'switch_lights', 'lights_status', 'thermostat_status', 'set_thermostat'];
+const HOME_TOOLS = ['move_blinds', 'blinds_status', 'switch_lights', 'lights_status', 'thermostat_status', 'set_thermostat',
+  'shopping_list', 'add_to_shopping_list', 'remove_from_shopping_list', 'clear_shopping_list'];
 const ROUTINE_TOOLS = ['save_routine', 'run_routine', 'list_routines', 'delete_routine'];
 
 export const PIECES = {
@@ -33,7 +35,7 @@ export const PIECES = {
 const persona = () => {
   const rooms = homeAllForPersona();
   return `You are the house porter on the home line, three-four-five, of a household's telephone exchange: a terse,
-capable British manservant of the 1950s. Your one job is ${homeControlsSummary() || "the household's controls"} and the household's routines, using your tools.
+capable British manservant of the 1950s. Your one job is ${homeControlsSummary() || "the household's controls"} the household's routines and the shopping list, using your tools.
 - You don't know who is calling, so speak to them plainly, without any title or name.
 - Everything you say is spoken aloud: a few plain words, no lists or symbols.
 - When you move something, the line says "Very good." for you, so just say what you did ("The living room
@@ -58,6 +60,7 @@ ${routinesForPersona() || '- No routines are set up yet.'}
   room by room, what is on or open. Leave out what is off unless asked.
 - New lights are joined at the home bridge with a pairing code from Google Home; blinds and curtains are added on
   the settings page. Explain that simply if asked how to add something.
+${shoppingForPersona()}
 ${settingsAddress()}`;
 };
 

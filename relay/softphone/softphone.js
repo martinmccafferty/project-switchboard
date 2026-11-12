@@ -135,3 +135,13 @@ setInterval(() => { $('frames').textContent = `frames sent ${stats.out}, receive
 for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, unlockAudio);
 startOutput();
 connect();
+
+// The shopping list, live (D-58): it changes here as the operator adds and removes things on a call.
+const shopping = new EventSource('/api/list/events');
+shopping.onmessage = (e) => {
+  const list = JSON.parse(e.data);
+  const ul = document.getElementById('list-items');
+  const sorted = [...list.filter((i) => !i.done), ...list.filter((i) => i.done)];
+  ul.replaceChildren(...(sorted.length ? sorted.map((i) => Object.assign(document.createElement('li'), { textContent: i.text, className: i.done ? 'done' : '' }))
+    : [Object.assign(document.createElement('li'), { className: 'empty', textContent: 'Nothing on the list.' })]));
+};

@@ -16,7 +16,7 @@ const spoken = (number) => number.split('').map((d) => DIGIT[d]).join(' ');
 
 // The lines in reading order; shortcut key = position (1-9).
 export const directoryLines = () => SERVICES.filter((s) => s.id !== 'directory').slice(0, 9);
-export const directoryText = () => ['Directory. Dial a single number to be connected.', 'For the operator, dial zero.',
+export const directoryText = () => ['Directory. Dial a single number to be connected.', 'For the operator, dial zero; the operator also keeps the household\'s shopping list.',
   ...directoryLines().map((s, i) => `For ${s.name}, dial ${DIGIT[i + 1]}; its number is ${spoken(s.number)}.`),
   'Or hang up.'].join(' ');
 

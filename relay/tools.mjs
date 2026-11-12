@@ -4,6 +4,7 @@ import { homeTools, homeHandlers } from './switchbot.mjs';
 import { lightsTools, lightsHandlers } from './lights.mjs';
 import { routineTools, routineHandlers } from './routines.mjs';
 import { thermostatTools, thermostatHandlers } from './house.mjs';
+import { shoppingTools, shoppingHandlers } from './shopping.mjs';
 import { household, geocode, homePlace } from './home.mjs';
 // Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
@@ -117,9 +118,9 @@ export async function getWeather({ location } = {}) {
 
 // Read per request: the home tools follow the household's rooms in the settings.
 // Routines (D-49): everyone may run and list them; making and removing them is the porter's job (homeline.mjs).
-export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools(), ...lightsTools(), ...thermostatTools(),
+export const toolDefinitions = () => [...baseTools, ...reminderTools, ...shoppingTools, ...homeTools(), ...lightsTools(), ...thermostatTools(),
   ...((homeTools().length || lightsTools().length) ? routineTools().filter((t) => ['run_routine', 'list_routines'].includes(t.name)) : [])];
-const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers, ...lightsHandlers, ...routineHandlers, ...thermostatHandlers };
+const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers, ...lightsHandlers, ...routineHandlers, ...thermostatHandlers, ...shoppingHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.
 export async function runTool(name, input) {

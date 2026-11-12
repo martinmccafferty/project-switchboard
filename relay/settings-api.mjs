@@ -4,6 +4,8 @@
 //   GET  /api/place?q=...       look a place up ("Morrisville, NC" -> full name and time zone)
 //   GET  /api/devices           the SwitchBot account's blinds and curtains (read-only)
 //   GET  /api/house             the home as Google Home and the home bridge know it (read-only, D-52)
+//   GET  /api/list (+ /events, live), POST /api/list {text}, PATCH|DELETE /api/list/<id>, POST /api/list/clear-done|clear
+//                               the shopping list (D-58)
 //   GET  /api/routines          the household's routines (D-49); DELETE /api/routines?name=... removes one
 // Only signed-in household members reach these (auth.mjs, D-45).
 import { settings, updateSettings } from './settings.mjs';
@@ -11,6 +13,7 @@ import { geocode } from './home.mjs';
 import { listDevices } from './switchbot.mjs';
 import { allRoutines, describeSchedule, deleteRoutine } from './routines.mjs';
 import { houseOverview } from './house.mjs';
+import { listItems, watchList, addItems, setDone, removeById, clearDone, clearAll } from './shopping.mjs';
 import { bridgeOverview } from './lights.mjs';
 
 const KINDS = { 'Blind Tilt': 'blind', Curtain: 'curtain', Curtain3: 'curtain' };
@@ -86,6 +89,30 @@ export async function handleSettingsApi(req, res, { onSaved = () => {} } = {}) {
       const { deviceList = [] } = await listDevices();
       return send(res, 200, deviceList.filter((d) => KINDS[d.deviceType]).map((d) => ({ id: d.deviceId, name: d.deviceName, kind: KINDS[d.deviceType] }))), true;
     }
+    // --- The shopping list (D-58). /events streams the list whenever it changes, for the list page and the softphone.
+    if (url.pathname === '/api/list/events' && req.method === 'GET') {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+      const push = (list) => res.write(`data: ${JSON.stringify(list)}\n\n`);
+      push(listItems());
+      const stop = watchList(push);
+      const beat = setInterval(() => res.write(': still here\n\n'), 25_000); // keeps proxies from closing it
+      req.on('close', () => { stop(); clearInterval(beat); });
+      return true;
+    }
+    if (url.pathname === '/api/list' && req.method === 'GET') return send(res, 200, listItems()), true;
+    if (url.pathname === '/api/list' && req.method === 'POST') {
+      let body; try { body = JSON.parse(await readBody(req)); } catch { return send(res, 400, { error: 'Bad request' }), true; }
+      if (!str(body.text, 80) || !body.text.trim()) return send(res, 400, { error: 'Type something to add.' }), true;
+      return send(res, 200, addItems([body.text])), true;
+    }
+    if (url.pathname === '/api/list/clear-done' && req.method === 'POST') { clearDone(); return send(res, 200, listItems()), true; }
+    if (url.pathname === '/api/list/clear' && req.method === 'POST') { clearAll(); return send(res, 200, listItems()), true; }
+    const one = url.pathname.match(/^\/api\/list\/([0-9a-f-]{36})$/);
+    if (one && req.method === 'PATCH') {
+      let body; try { body = JSON.parse(await readBody(req)); } catch { return send(res, 400, { error: 'Bad request' }), true; }
+      return send(res, setDone(one[1], body.done) ? 200 : 404, listItems()), true;
+    }
+    if (one && req.method === 'DELETE') { removeById(one[1]); return send(res, 200, listItems()), true; }
     if (url.pathname === '/api/house' && req.method === 'GET') return send(res, 200, { google: houseOverview(), bridge: bridgeOverview() }), true;
     if (url.pathname === '/api/routines' && req.method === 'GET') {
       return send(res, 200, allRoutines().map((r) => ({ name: r.name, runs: describeSchedule(r.schedule), steps: r.steps, lastRun: r.lastRun ?? null }))), true;

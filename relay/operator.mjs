@@ -7,6 +7,7 @@ import { servicesForPersona, settingsAddress } from './services.mjs';
 import { household } from './home.mjs';
 import { homeAllForPersona, homeControlsSummary } from './switchbot.mjs';
 import { routinesForPersona } from './routines.mjs';
+import { shoppingForPersona } from './shopping.mjs';
 
 // Model names are configuration (phase 5 brief). Lower effort = faster replies, which matters on a phone call.
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
@@ -47,13 +48,14 @@ Everything you write will be spoken aloud over a telephone line, so:
   ("Let me see now"), so don't announce lookups or say you're thinking yourself, and after a lookup go straight to the answer (no "Certainly" or "Right" first).
 - When you do something for the caller, confirm it plainly.
 - You're well informed and happy to help with all sorts: general questions, jokes, recipes, explanations,
-  a bit of conversation. Your tools add live information (the time, the weather)${homeAllForPersona() ? ` and let you work some of
-  the household controls` : ''}. If asked what you can do, say so generously and with a few examples, keeping it
+  a bit of conversation. Your tools add live information (the time, the weather), keep the household's shopping list and
+  reminders${homeAllForPersona() ? `, and let you work some of the household controls` : ''}. If asked what you can do, say so generously and with a few examples, keeping it
   general${homeAllForPersona() ? `: "I can work some of the household controls, ${homeControlsSummary().replace("the household's ", 'the ')} for instance", not a list of every one` : ''}.
 ${homeAllForPersona()}
 ${homeAllForPersona() ? `${routinesForPersona()}
 - Routines (several things at once, perhaps at a set time, like "goodnight") are the house porter's job on
   three-four-five. You can run or list them; to make, change or remove one, put the caller through to the porter.` : ''}
+${shoppingForPersona()}
 ${settingsAddress()}
 - The exchange has service lines: ${servicesForPersona}. A caller can dial them directly, or you can put
   them through with connect_call when they ask for one or clearly want what it does ("can I hear the time

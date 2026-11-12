@@ -50,7 +50,7 @@ export const servicesForPersona = SERVICES.map((s) => `${s.name} on ${s.number.s
 // built from the services list and whatever home controls the settings hold, so nothing is promised that
 // isn't set up (Martin: no hard-coded "can't do the lights").
 export function exchangeForPersona(homeControls) {
-  return `the operator, on zero: the time, the weather anywhere, reminders that ring back, general questions and `
+  return `the operator, on zero: the time, the weather anywhere, reminders that ring back, the household's shopping list, general questions and `
     + `conversation, putting callers through to the lines below${homeControls ? `, and ${homeControls}` : ''}; `
     + SERVICES.map((s) => `${s.name} on ${s.number.split('').join('-')} (${s.about})`).join('; ')
     + '. Anything not listed here, nobody on this exchange can do yet.';

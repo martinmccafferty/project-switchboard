@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Please · Shopping list</title>
+<style>
+  :root { --ivory: #f3ecdc; --ink: #3b3226; --brass: #b08d57; --panel: #e6dcc6; --line: #cbbd9f; --quiet: #6c604e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #2d2822; color: var(--ink); font: 16px/1.45 Georgia, 'Times New Roman', serif;
+    padding: 24px 16px 48px; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 520px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+  header a { color: var(--ivory); font-size: 14px; }
+  section { background: var(--ivory); border-radius: 18px; padding: 18px 20px; box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+  form { display: flex; gap: 8px; margin-bottom: 14px; }
+  input[type=text] { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fffaf0;
+    color: var(--ink); font: inherit; font-size: 16px; }
+  button { padding: 8px 14px; border: 1px solid var(--brass); border-radius: 8px; background: var(--panel); color: var(--ink);
+    font: inherit; font-size: 15px; cursor: pointer; }
+  button.primary { background: var(--ink); color: var(--ivory); border-color: var(--ink); }
+  button.quiet { border-color: transparent; background: transparent; text-decoration: underline; padding: 4px; font-size: 14px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  li:last-child { border-bottom: 0; }
+  li label { flex: 1; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 17px; }
+  li input { width: 22px; height: 22px; accent-color: var(--ink); flex: none; }
+  li.done label span { text-decoration: line-through; color: var(--quiet); }
+  li .x { border: 0; background: transparent; color: var(--quiet); font-size: 22px; line-height: 1; padding: 0 6px; }
+  .empty { color: var(--quiet); font-style: italic; padding: 8px 0; }
+  .tools { display: flex; justify-content: space-between; margin-top: 12px; }
+  .hint { color: #b8ad98; font-size: 13px; text-align: center; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Shopping list</h1><span><a href="/">Phone</a> · <a href="/settings">Settings</a></span></header>
+  <section>
+    <form id="add"><input type="text" id="text" maxlength="80" placeholder="Add an item" autocomplete="off" aria-label="Add an item"><button class="primary">Add</button></form>
+    <ul id="items"></ul>
+    <div class="tools"><button class="quiet" id="clear-done">Clear ticked</button><button class="quiet" id="clear-all">Clear all</button></div>
+  </section>
+  <p class="hint">Or lift the phone and tell the operator: "Add eggs and milk to the shopping list."</p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const call = (url, method = 'POST', body) => fetch(url, { method, headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
+function show(list) {
+  // Still to buy first, ticked-off things after.
+  const sorted = [...list.filter((i) => !i.done), ...list.filter((i) => i.done)];
+  $('items').replaceChildren(...(sorted.length ? sorted.map((i) => {
+    const li = document.createElement('li'); li.className = i.done ? 'done' : '';
+    const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: i.done });
+    box.onchange = () => call(`/api/list/${i.id}`, 'PATCH', { done: box.checked });
+    const label = document.createElement('label'); label.append(box, Object.assign(document.createElement('span'), { textContent: i.text }));
+    const x = Object.assign(document.createElement('button'), { className: 'x', textContent: '×', title: `Remove ${i.text}` });
+    x.setAttribute('aria-label', `Remove ${i.text}`);
+    x.onclick = () => call(`/api/list/${i.id}`, 'DELETE');
+    li.append(label, x); return li;
+  }) : [Object.assign(document.createElement('li'), { className: 'empty', textContent: 'Nothing on the list.' })]));
+}
+$('add').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('text').value.trim(); if (!text) return;
+  $('text').value = ''; await call('/api/list', 'POST', { text }); $('text').focus();
+};
+$('clear-done').onclick = () => call('/api/list/clear-done');
+$('clear-all').onclick = () => { if (confirm('Clear the whole shopping list?')) call('/api/list/clear'); };
+// Live: the list changes as the operator works it, and when someone else ticks things off.
+const live = new EventSource('/api/list/events');
+live.onmessage = (e) => show(JSON.parse(e.data));
+</script>
+</body>
+</html>
