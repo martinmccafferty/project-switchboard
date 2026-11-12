@@ -28,6 +28,7 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-15 | `p15-digikey-parts.png` | DigiKey support parts as received (7 bags) | 2026-11-12 |
 | P-16a–d | `p16a-…`–`p16d-…` | Base compartment and tape measurements (≈ 75 × 40 × 25 mm); "3.7V" recess | 2026-11-12 |
 | P-17 | `p17-line-cord-cut.png` | Line cord cut: 2-conductor cord, jacket stripped | 2026-11-12 |
+| P-18 | `p18-starter-kit-resistors.png` | Starter kit: labeled resistor boxes (10 Ω–1 MΩ), push buttons, LEDs, ceramic capacitors, rainbow jumper ribbon | 2026-11-12 |
 
 ## Wanted
 
