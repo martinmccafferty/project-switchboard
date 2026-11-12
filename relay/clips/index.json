@@ -74,6 +74,16 @@
       "text": "I'll clear the line now. Just dial zero whenever you need me. Goodbye.",
       "click": false,
       "seconds": 5.45
+    },
+    "announce-switch_lights": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 0.95
+    },
+    "announce-lights_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.5
     }
   },
   "ethel": {
@@ -141,6 +151,16 @@
       "text": "I'll clear the line now. Just dial zero whenever you need me. Goodbye.",
       "click": false,
       "seconds": 5.24
+    },
+    "announce-switch_lights": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.32
+    },
+    "announce-lights_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.64
     }
   }
 }

@@ -2,6 +2,7 @@
 // Run on its own to list the account's devices (read-only):  node --env-file=.env switchbot.mjs   (--draft: see the end)
 import crypto from 'node:crypto';
 import { settings } from './settings.mjs';
+import { lightsForPersona, lightsSummary } from './lights.mjs';
 
 const API = 'https://api.switch-bot.com/v1.1';
 
@@ -122,11 +123,15 @@ async function blindsStatus() {
 }
 
 export const homeHandlers = { move_blinds: moveBlinds, blinds_status: blindsStatus };
-// The home controls in a few words, for describing the exchange ('' if none are set up).
+// The home controls in a few words, for describing the exchange ('' if none are set up): the blinds and curtains
+// from the settings, plus the lights while the home bridge has some (D-48).
 export const homeControlsSummary = () => {
-  const kinds = new Set(groups().flatMap((g) => g.devices.map((d) => d.kind)));
-  return kinds.size ? `the household's ${[...kinds].map((k) => `${k}s`).join(' and ')}` : '';
+  const kinds = [...new Set(groups().flatMap((g) => g.devices.map((d) => d.kind)))].map((k) => `${k}s`);
+  if (lightsSummary()) kinds.push('lights');
+  return kinds.length ? `the household's ${kinds.join(' and ')}` : '';
 };
+// Everything Doris and the porter know about the home controls ('' if none).
+export const homeAllForPersona = () => [homeForPersona(), lightsForPersona()].filter(Boolean).join('\n');
 
 // Run on its own: lists the account's devices (read-only). With --draft, prints a starting "home" section for
 // data/settings.json, one group per blind or curtain, to rename and combine (e.g. a pair of curtain motors).

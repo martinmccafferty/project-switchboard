@@ -1,6 +1,7 @@
-// Operator tools: time and weather (M1), reminders and blinds (M4). Each tool = a definition Claude sees + a function the relay runs.
+// Operator tools: time and weather (M1), reminders and blinds (M4), lights through the home bridge (D-48). Each tool = a definition Claude sees + a function the relay runs.
 import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
+import { lightsTools, lightsHandlers } from './lights.mjs';
 import { household, geocode, homePlace } from './home.mjs';
 // Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
@@ -46,6 +47,8 @@ export const toolAnnouncements = {
   move_blinds: 'Right away.',
   connect_call: 'Right away.', // the tool itself lives in services.mjs
   blinds_status: 'One moment, let me take a look.',
+  switch_lights: 'Right away.',
+  lights_status: 'One moment, let me take a look.',
 };
 
 async function fetchJson(url) {
@@ -107,13 +110,14 @@ export async function getWeather({ location } = {}) {
 }
 
 // Read per request: the home tools follow the household's rooms in the settings.
-export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools()];
-const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers };
+export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools(), ...lightsTools()];
+const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers, ...lightsHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.
 export async function runTool(name, input) {
   const handler = handlers[name];
   if (!handler) return { content: JSON.stringify({ error: `Unknown tool ${name}` }), isError: true };
+  console.log(`Tool ${name} ${JSON.stringify(input ?? {})}`);
   try {
     return { content: JSON.stringify(await handler(input ?? {})), isError: false };
   } catch (err) {

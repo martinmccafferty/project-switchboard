@@ -24,3 +24,6 @@ relay/*.m4a
 relay/*.wav
 relay/cues/
 relay/data/
+
+# Home bridge: its Matter identity and joined devices (D-48)
+bridge/data/

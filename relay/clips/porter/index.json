@@ -5,5 +5,7 @@
   "line-trouble": "Sorry, the home line is out of order just now. Dial zero for the operator.",
   "greeting": "Home line. Porter speaking.",
   "announce-connect_operator": "Very good.",
-  "idle-goodbye": "I'll clear the line now. Good day."
+  "idle-goodbye": "I'll clear the line now. Good day.",
+  "announce-switch_lights": "Very good.",
+  "announce-lights_status": "Let me look."
 }

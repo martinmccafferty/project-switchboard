@@ -14,6 +14,7 @@ import { speakingClock } from './clock.mjs';
 import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
 import { handleAuth, phoneAllowed, checkAuthConfig } from './auth.mjs';
+import { attachBridge, bridgeAllowed } from './lights.mjs';
 import { homeLine } from './homeline.mjs';
 import { newsCall } from './newsline.mjs';
 import { directoryCall, prepareDirectory, directoryLines } from './directory.mjs';
@@ -292,8 +293,17 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
   fs.createReadStream(file).pipe(res);
 });
-// A signed-in browser, or the real phone with its PHONE_TOKEN; anyone else is refused before the line opens.
-const wss = new WebSocketServer({ server, path: '/phone', verifyClient: ({ req }) => phoneAllowed(req) });
+// Two kinds of connection: /phone (a signed-in browser, or the real phone with its PHONE_TOKEN) and /bridge (the
+// household's home bridge with its BRIDGE_TOKEN, D-48). Anyone else is refused before the connection opens.
+const wss = new WebSocketServer({ noServer: true });
+const bridges = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://relay');
+  const [door, allowed] = pathname === '/phone' ? [wss, phoneAllowed(req)] : pathname === '/bridge' ? [bridges, bridgeAllowed(req)] : [null, false];
+  if (!door || !allowed) { socket.end(`HTTP/1.1 ${door ? '401 Unauthorized' : '404 Not Found'}\r\n\r\n`); return; }
+  door.handleUpgrade(req, socket, head, (ws) => door.emit('connection', ws, req));
+});
+bridges.on('connection', (ws) => attachBridge(ws, (m) => console.log(`[${now()}] ${m}`)));
 wss.on('connection', (ws, req) => {
   const from = req.socket.remoteAddress.replace('::ffff:', '');
   console.log(`[${now()}] Phone connected from ${from}`);

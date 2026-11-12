@@ -1,0 +1,21 @@
+{
+  "name": "switchboard-home-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Switchboard home bridge: controls Matter devices on the home network for the operator (D-48). The Mac stands in for the phone's ESP32.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "dependencies": {
+    "@matter/main": "^0.18.0",
+    "@matter/nodejs": "^0.18.0",
+    "@project-chip/matter.js": "^0.18.0",
+    "ws": "^8.22.2"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env connect.mjs",
+    "pair": "node pair.mjs",
+    "light": "node light.mjs"
+  }
+}
