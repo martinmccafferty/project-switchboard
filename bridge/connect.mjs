@@ -4,9 +4,10 @@
 // Reconnects by itself if the relay or the network goes away.
 //   npm start
 import fs from 'node:fs';
+import http from 'node:http';
 import WebSocket from 'ws';
 import { OnOff, LevelControl, ColorControl } from '@matter/main/clusters';
-import { openController, device } from './matter.mjs';
+import { openController, device, pair } from './matter.mjs';
 
 const URL_ = process.env.RELAY_URL; const TOKEN = process.env.BRIDGE_TOKEN;
 if (!URL_ || !TOKEN) { console.log('Set RELAY_URL and BRIDGE_TOKEN in bridge/.env'); process.exit(1); }
@@ -36,11 +37,11 @@ process.on('exit', () => { try { if (fs.readFileSync(LOCK, 'utf8') === String(pr
 // --- The lights, kept connected. name -> { onOff, level, color, caps, state: { on, level, color } }
 const controller = await openController();
 const lamps = new Map();
-for (const id of controller.getCommissionedNodes()) {
+async function addLamp(id) {
   try {
     const { node, name } = await device(controller, String(id));
     const d = node.getDevices().find((x) => x.getClusterClient(OnOff.Complete));
-    if (!d) continue;
+    if (!d) return;
     const lamp = { onOff: d.getClusterClient(OnOff.Complete), level: d.getClusterClient(LevelControl.Complete),
       color: d.getClusterClient(ColorControl.Complete), caps: {}, state: {} };
     if (lamp.color) {
@@ -58,8 +59,30 @@ for (const id of controller.getCommissionedNodes()) {
     lamp.level?.addCurrentLevelAttributeListener((v) => { lamp.state.level = pct(v); changed(); });
     lamps.set(name, lamp);
     console.log(`[${now()}] ${name}: ${lamp.state.on ? 'on' : 'off'}`);
+    return name;
   } catch (err) { console.log(`[${now()}] Light ${id} not answering: ${err.message}`); }
 }
+for (const id of controller.getCommissionedNodes()) await addLamp(id);
+
+// Joining more lights while the bridge runs: \`npm run pair\` hands the code to this local-only door (the Matter
+// identity is locked while the bridge runs, so pair.mjs can't use it itself). The new light is announced at once.
+const LOCAL_PORT = Number(process.env.BRIDGE_LOCAL_PORT) || 8765;
+http.createServer((req, res) => {
+  if (req.method !== 'POST' || req.url !== '/pair') { res.writeHead(404).end(); return; }
+  let body = ''; req.on('data', (c) => { body += c; });
+  req.on('end', async () => {
+    const reply = (status, m) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(m)); };
+    try {
+      const { code, name } = JSON.parse(body);
+      if ([...lamps.keys()].some((n) => n.toLowerCase() === String(name).trim().toLowerCase())) return reply(400, { error: `There is already a light called "${name}".` });
+      console.log(`[${now()}] Joining "${name}"…`);
+      const id = await pair(controller, code, name);
+      const added = await addLamp(id);
+      changed();
+      reply(200, { nodeId: String(id), name: added ?? name });
+    } catch (err) { reply(500, { error: err.message }); }
+  });
+}).listen(LOCAL_PORT, '127.0.0.1');
 const report = (names = [...lamps.keys()]) => names.map((name) => {
   const l = lamps.get(name);
   return l ? { name, on: l.state.on, level: l.state.level, ...(l.state.color ? { color: l.state.color } : {}), can: l.caps } : { name, error: 'not joined to the bridge' };

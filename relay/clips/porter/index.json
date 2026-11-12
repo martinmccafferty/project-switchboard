@@ -7,5 +7,11 @@
   "announce-connect_operator": "Very good.",
   "idle-goodbye": "I'll clear the line now. Good day.",
   "announce-switch_lights": "Very good.",
-  "announce-lights_status": "Let me look."
+  "announce-lights_status": "Let me look.",
+  "announce-save_routine": "Very good.",
+  "announce-run_routine": "Very good.",
+  "announce-list_routines": "Let me look.",
+  "announce-delete_routine": "Very good.",
+  "announce-thermostat_status": "Let me look.",
+  "announce-set_thermostat": "Very good."
 }

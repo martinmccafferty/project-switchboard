@@ -8,6 +8,7 @@
 //   relay -> bridge  {"type":"command","id":7,"lights":["office lamp"],"action":"on"|"off"|"dim"|"color"|"white"|"status",
 //                     "level":30,"hue":240,"saturation":100,"kelvin":2700}   (colour and white only where "can" says so, T-044)
 import crypto from 'node:crypto';
+import { houseReady, houseLights, houseSwitchLights } from './house.mjs';
 
 const TOKEN = process.env.BRIDGE_TOKEN || '';
 const COMMAND_TIMEOUT_MS = 10_000;
@@ -41,8 +42,18 @@ export function attachBridge(ws, log = console.log) {
   ws.on('close', () => clearInterval(ping));
 }
 
-const lights = () => bridge?.lights ?? [];
-function ask(command) {
+// Where the lights come from: Google Home when it's connected and has lights (D-51), else the home bridge. One source
+// at a time, so no light is worked twice.
+const viaGoogle = () => houseReady() && houseLights().length > 0;
+const lights = () => (viaGoogle() ? houseLights().map((l) => ({ name: l.name, room: l.room, can: l.can, ...l.state })) : bridge?.lights ?? []);
+const rooms = () => (viaGoogle() ? [...new Set(houseLights().map((l) => l.room).filter(Boolean))] : []);
+// The home bridge, for the settings page: connected, its lights, and whether they're in use (not while Google Home is).
+export const bridgeOverview = () => ({ connected: Boolean(bridge), lights: (bridge?.lights ?? []).map((l) => l.name), in_use: Boolean(bridge) && !viaGoogle() });
+export const lightNames = () => [...lights().map((l) => l.name), ...rooms()];
+async function ask(command) {
+  if (viaGoogle()) {
+    try { const r = await houseSwitchLights(command); return r.error ? r : { lights: r }; } catch (err) { return { error: `Google Home didn't answer (${err.message}).` }; }
+  }
   if (!bridge) return Promise.resolve({ error: "The house's light switchboard isn't connected just now." });
   const id = nextId++;
   return new Promise((resolve) => {
@@ -64,13 +75,14 @@ export function lightsTools() {
       name: 'switch_lights',
       description: `Turn the household's lights on or off, dim them${colored.length ? ', change their colour' : ''}${whites.length ? ', or set a warmer or cooler white' : ''}. `
         + `Lights: ${ls.map((l) => l.name).join('; ')}. `
+        + (rooms().length ? `Or name a room for every light in it: ${rooms().join('; ')}. ` : '')
         + (colored.length ? `Colour works on: ${colored.join('; ')}. ` : '')
         + (whites.length ? `White from ${warmest} K (warm, like candlelight) to ${coolest} K (cool daylight) works on: ${whites.map((l) => l.name).join('; ')}. ` : '')
         + 'Confirm it to the caller once this succeeds.',
       input_schema: {
         type: 'object',
         properties: {
-          lights: { type: 'array', items: { type: 'string', enum: ls.map((l) => l.name) }, description: 'Which lights.' },
+          lights: { type: 'array', items: { type: 'string', enum: [...ls.map((l) => l.name), ...rooms()] }, description: 'Which lights, or rooms.' },
           action: { type: 'string', enum: actions },
           level: { type: 'integer', minimum: 1, maximum: 100, description: 'Brightness percent, for "dim" (e.g. 30 = low, 100 = full).' },
           ...(colored.length ? {
@@ -107,7 +119,10 @@ export function lightsForPersona() {
   const ls = lights();
   if (!ls.length) return '';
   const colored = ls.some((l) => l.can?.color); const whites = ls.some((l) => l.can?.white);
-  return `- The lights: ${ls.map((l) => l.name).join('; ')}. On, off and dim${colored ? ', any colour' : ''}${whites ? ', and white from warm to cool' : ''}. `
+  const byRoom = {}; for (const l of ls) (byRoom[l.room ?? ''] ??= []).push(l.name);
+  const list = rooms().length ? `by room (a room's name means every light in it): ${Object.entries(byRoom).map(([r, n]) => `${r || 'Other'}: ${n.join(', ')}`).join('; ')}`
+    : ls.map((l) => l.name).join('; ');
+  return `- The lights, ${list}. On, off and dim${colored ? ', any colour' : ''}${whites ? ', and white from warm to cool' : ''}. `
     + 'Speak of colours as a person would ("a soft blue", "a warm white"), never as numbers or kelvins. '
     + 'Confirm plainly what you\'ve done ("The office lamp is blue now."). If a light didn\'t answer, say so simply.';
 }

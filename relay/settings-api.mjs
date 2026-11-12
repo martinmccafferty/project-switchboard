@@ -3,10 +3,15 @@
 //   PUT  /api/settings          replace them (checked first, so a bad save can't break the phone)
 //   GET  /api/place?q=...       look a place up ("Morrisville, NC" -> full name and time zone)
 //   GET  /api/devices           the SwitchBot account's blinds and curtains (read-only)
+//   GET  /api/house             the home as Google Home and the home bridge know it (read-only, D-52)
+//   GET  /api/routines          the household's routines (D-49); DELETE /api/routines?name=... removes one
 // Only signed-in household members reach these (auth.mjs, D-45).
 import { settings, updateSettings } from './settings.mjs';
 import { geocode } from './home.mjs';
 import { listDevices } from './switchbot.mjs';
+import { allRoutines, describeSchedule, deleteRoutine } from './routines.mjs';
+import { houseOverview } from './house.mjs';
+import { bridgeOverview } from './lights.mjs';
 
 const KINDS = { 'Blind Tilt': 'blind', Curtain: 'curtain', Curtain3: 'curtain' };
 const str = (v, max = 200) => typeof v === 'string' && v.length <= max;
@@ -80,6 +85,14 @@ export async function handleSettingsApi(req, res, { onSaved = () => {} } = {}) {
     if (url.pathname === '/api/devices' && req.method === 'GET') {
       const { deviceList = [] } = await listDevices();
       return send(res, 200, deviceList.filter((d) => KINDS[d.deviceType]).map((d) => ({ id: d.deviceId, name: d.deviceName, kind: KINDS[d.deviceType] }))), true;
+    }
+    if (url.pathname === '/api/house' && req.method === 'GET') return send(res, 200, { google: houseOverview(), bridge: bridgeOverview() }), true;
+    if (url.pathname === '/api/routines' && req.method === 'GET') {
+      return send(res, 200, allRoutines().map((r) => ({ name: r.name, runs: describeSchedule(r.schedule), steps: r.steps, lastRun: r.lastRun ?? null }))), true;
+    }
+    if (url.pathname === '/api/routines' && req.method === 'DELETE') {
+      const r = deleteRoutine({ name: url.searchParams.get('name') });
+      return send(res, r.error ? 404 : 200, r), true;
     }
     return send(res, 404, { error: 'Not found' }), true;
   } catch (err) {

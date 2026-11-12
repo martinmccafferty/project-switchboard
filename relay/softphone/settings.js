@@ -92,6 +92,62 @@ function feedRow(f = {}) {
   return row;
 }
 
+// --- Google Home (D-50): connected by an owner through Google's own consent screen.
+async function loadGoogleHome() {
+  const box = $('google-home');
+  const g = await (await fetch('/api/google-home')).json();
+  const result = new URLSearchParams(location.search).get('google_home');
+  const note = { connected: 'Connected.', declined: 'Google Home was not connected (access was declined).', expired: 'That took too long; try again.', failed: "Couldn't connect; try again." }[result];
+  if (!g.connected) {
+    const go = el('button', { className: 'primary', textContent: 'Connect Google Home' });
+    go.onclick = () => { location.href = '/auth/google-home'; };
+    box.replaceChildren(...(note ? [el('div', { className: result === 'connected' ? 'found ok' : 'found bad', textContent: note })] : []), go);
+    loadHouse().catch(() => {});
+    return;
+  }
+  const off = el('button', { className: 'quiet', textContent: 'Disconnect' });
+  off.onclick = async () => { if (confirm('Disconnect Google Home?')) { await fetch('/api/google-home/disconnect', { method: 'POST' }); loadGoogleHome(); } };
+  box.replaceChildren(
+    el('div', { className: g.error ? 'found bad' : 'found ok', textContent: g.error ? `Connected, but Google Home didn't answer: ${g.error}` : `Connected${g.connected_by ? ` by ${g.connected_by}` : ''}.` }),
+    off);
+  loadHouse().catch(() => { $('house').textContent = "Couldn't list the devices."; });
+}
+
+// The home as Google Home knows it, room by room, with what the phone does with each device (D-52).
+async function loadHouse() {
+  const { google, bridge } = await (await fetch('/api/house')).json();
+  $('house').replaceChildren(...(google ? [
+    el('p', { className: 'hint', textContent: `${google.home}: ${google.rooms.reduce((n, r) => n + r.devices.length, 0)} devices in ${google.rooms.length} rooms.` }),
+    ...google.rooms.map((r) => el('div', { className: 'room' }, el('h3', { textContent: r.name }),
+      el('ul', {}, ...r.devices.map((d) => el('li', { className: /not used|never/.test(d.use) ? 'unused' : '' },
+        `${d.name} `, el('span', { className: 'use', textContent: `(${d.kind}: ${d.use})` })))))),
+  ] : []));
+  $('bridge').textContent = !bridge.connected ? ''
+    : `Home bridge connected${bridge.lights.length ? ` (${bridge.lights.join(', ')})` : ''}${bridge.in_use ? '.' : ': standing by while Google Home is connected.'}`;
+}
+
+// --- Routines (D-49): made by phone with the porter; listed here, and removable.
+const stepWords = (s) => {
+  const what = `${s.targets.join(', ')}: ${s.action}`;
+  const extra = s.action === 'dim' ? ` to ${s.level}%` : s.action === 'white' ? ` (${s.kelvin} K)` : s.action === 'color' ? ` (hue ${s.hue})` : '';
+  return what + extra;
+};
+async function loadRoutines() {
+  const rs = await (await fetch('/api/routines')).json();
+  if (!rs.length) { $('routines').replaceChildren(el('span', { className: 'hint', textContent: 'None yet. Try: "Set up a goodnight routine that turns off all the lights."' })); return; }
+  $('routines').replaceChildren(...rs.map((r) => {
+    const remove = el('button', { className: 'quiet', textContent: 'Remove' });
+    remove.onclick = async () => {
+      if (!confirm(`Remove the "${r.name}" routine?`)) return;
+      const res = await fetch(`/api/routines?name=${encodeURIComponent(r.name)}`, { method: 'DELETE' });
+      if (res.ok) loadRoutines(); else message('Couldn\'t remove it.', true);
+    };
+    return el('div', { className: 'routine' },
+      el('div', { className: 'group-head' }, el('strong', { textContent: r.name }), el('span', { textContent: r.runs }), remove),
+      el('ul', {}, ...r.steps.map((s) => el('li', { textContent: stepWords(s) }))));
+  }));
+}
+
 // --- Load and save
 function read() {
   return {
@@ -137,3 +193,5 @@ document.addEventListener('input', changed);
 document.addEventListener('change', changed);
 window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
 load().catch((err) => message(`Couldn't load settings: ${err.message}`, true));
+loadRoutines().catch(() => { $('routines').textContent = "Couldn't load the routines."; });
+loadGoogleHome().catch(() => { $('google-home').textContent = "Couldn't check Google Home."; });

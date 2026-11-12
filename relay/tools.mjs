@@ -2,6 +2,8 @@
 import { reminderTools, reminderHandlers } from './reminders.mjs';
 import { homeTools, homeHandlers } from './switchbot.mjs';
 import { lightsTools, lightsHandlers } from './lights.mjs';
+import { routineTools, routineHandlers } from './routines.mjs';
+import { thermostatTools, thermostatHandlers } from './house.mjs';
 import { household, geocode, homePlace } from './home.mjs';
 // Weather uses Open-Meteo (free, no API key); home is the HOME_LOCATION setting (home.mjs).
 
@@ -49,6 +51,10 @@ export const toolAnnouncements = {
   blinds_status: 'One moment, let me take a look.',
   switch_lights: 'Right away.',
   lights_status: 'One moment, let me take a look.',
+  thermostat_status: 'One moment, let me take a look.',
+  set_thermostat: 'Right away.',
+  run_routine: 'Right away.',
+  list_routines: 'One moment, let me take a look.',
 };
 
 async function fetchJson(url) {
@@ -110,8 +116,10 @@ export async function getWeather({ location } = {}) {
 }
 
 // Read per request: the home tools follow the household's rooms in the settings.
-export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools(), ...lightsTools()];
-const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers, ...lightsHandlers };
+// Routines (D-49): everyone may run and list them; making and removing them is the porter's job (homeline.mjs).
+export const toolDefinitions = () => [...baseTools, ...reminderTools, ...homeTools(), ...lightsTools(), ...thermostatTools(),
+  ...((homeTools().length || lightsTools().length) ? routineTools().filter((t) => ['run_routine', 'list_routines'].includes(t.name)) : [])];
+const handlers = { get_time: getTime, get_weather: getWeather, ...reminderHandlers, ...homeHandlers, ...lightsHandlers, ...routineHandlers, ...thermostatHandlers };
 
 // Runs a tool and returns a JSON string for Claude. Errors come back as { error } so Claude can apologize gracefully.
 export async function runTool(name, input) {

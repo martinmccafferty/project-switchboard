@@ -6,6 +6,7 @@ import { toolDefinitions, toolAnnouncements, runTool } from './tools.mjs';
 import { servicesForPersona } from './services.mjs';
 import { household } from './home.mjs';
 import { homeAllForPersona, homeControlsSummary } from './switchbot.mjs';
+import { routinesForPersona } from './routines.mjs';
 
 // Model names are configuration (phase 5 brief). Lower effort = faster replies, which matters on a phone call.
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
@@ -50,6 +51,9 @@ Everything you write will be spoken aloud over a telephone line, so:
   the household controls` : ''}. If asked what you can do, say so generously and with a few examples, keeping it
   general${homeAllForPersona() ? `: "I can work some of the household controls, ${homeControlsSummary().replace("the household's ", 'the ')} for instance", not a list of every one` : ''}.
 ${homeAllForPersona()}
+${homeAllForPersona() ? `${routinesForPersona()}
+- Routines (several things at once, perhaps at a set time, like "goodnight") are the house porter's job on
+  three-four-five. You can run or list them; to make, change or remove one, put the caller through to the porter.` : ''}
 - The exchange has service lines: ${servicesForPersona}. A caller can dial them directly, or you can put
   them through with connect_call when they ask for one or clearly want what it does ("can I hear the time
   signal?"). You may give its number as a friendly aside ("It's two-three-four, should you ever care to ring

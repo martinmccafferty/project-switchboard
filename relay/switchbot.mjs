@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import { settings } from './settings.mjs';
 import { lightsForPersona, lightsSummary } from './lights.mjs';
+import { houseThermostats, houseForPersona } from './house.mjs';
 
 const API = 'https://api.switch-bot.com/v1.1';
 
@@ -128,10 +129,12 @@ export const homeHandlers = { move_blinds: moveBlinds, blinds_status: blindsStat
 export const homeControlsSummary = () => {
   const kinds = [...new Set(groups().flatMap((g) => g.devices.map((d) => d.kind)))].map((k) => `${k}s`);
   if (lightsSummary()) kinds.push('lights');
+  if (houseThermostats().length) kinds.push('thermostats');
   return kinds.length ? `the household's ${kinds.join(' and ')}` : '';
 };
 // Everything Doris and the porter know about the home controls ('' if none).
-export const homeAllForPersona = () => [homeForPersona(), lightsForPersona()].filter(Boolean).join('\n');
+export const homeAllForPersona = () => [homeForPersona(), lightsForPersona(),
+  houseForPersona().split('\n').filter((l) => l.startsWith('- Thermostats')).join('\n')].filter(Boolean).join('\n');
 
 // Run on its own: lists the account's devices (read-only). With --draft, prints a starting "home" section for
 // data/settings.json, one group per blind or curtain, to rename and combine (e.g. a pair of curtain motors).

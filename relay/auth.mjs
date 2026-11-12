@@ -186,3 +186,11 @@ async function exchange(code, redirectUri) {
   if (!claims.email || claims.email_verified !== true) throw new Error('email not verified by Google');
   return claims.email.toLowerCase();
 }
+
+// For other Google sign-ins made by the relay (connecting Google Home, D-50): the same signed state and cookies.
+export const oauth = { clientId: CLIENT_ID, clientSecret: CLIENT_SECRET, sign, unsign, cookies, cookie, origin };
+// Only an owner (OWNER_EMAILS) may connect or disconnect household-wide services.
+export const ownerSignedIn = (req) => {
+  const email = signedIn(req);
+  return Boolean(email) && (!authEnabled || OWNERS.some((x) => sameEmail(x) === sameEmail(email)));
+};

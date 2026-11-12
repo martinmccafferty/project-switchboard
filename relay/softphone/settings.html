@@ -37,6 +37,14 @@
   .group-head { display: flex; justify-content: space-between; align-items: center; }
   .group-head strong { font-size: 16px; }
   .devname { font-size: 12px; color: #6c604e; }
+  .room { margin-top: 12px; }
+  .room h3 { margin: 0 0 4px; font-size: 15px; }
+  .room ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  .room .use { color: #6c604e; font-size: 13px; }
+  .room li.unused { color: #8d826f; }
+  .routine { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 10px; background: #f8f2e4; }
+  .routine .group-head span { font-size: 13px; color: #6c604e; }
+  .routine ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
   .feed { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-top: 8px; align-items: center; }
   @media (max-width: 560px) { .feed { grid-template-columns: 1fr auto; } .feed input.url { grid-column: 1 / -1; grid-row: 2; } }
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #1f1b17; padding: 12px 16px; display: flex; justify-content: center; }
@@ -69,8 +77,16 @@
   </section>
 
   <section>
-    <h2>Blinds and curtains</h2>
-    <p class="sub">Group your SwitchBot devices the way you talk about them. Doris learns these names.</p>
+    <h2>Google Home</h2>
+    <p class="sub">Connect the household's Google Home and the phone sees every room and device by the names you already use there. To rename or move a device, do it in Google Home; this list follows within ten minutes. Needs Google Home Premium Advanced. Only an owner can connect it.</p>
+    <div id="google-home"><span class="hint">Checking…</span></div>
+    <div id="house"></div>
+    <div id="bridge" class="hint"></div>
+  </section>
+
+  <section>
+    <h2>SwitchBot</h2>
+    <p class="sub">Your SwitchBot blinds and curtains, grouped the way you talk about them. Doris and the porter learn these names. (SwitchBot doesn't keep rooms, so the groups are made here.)</p>
     <label class="field" for="layout">The room, in a sentence</label>
     <textarea id="layout"></textarea>
     <div class="hint">Helps Doris understand "the back" or "everything by the door".</div>
@@ -78,12 +94,20 @@
     <p><button id="add">+ Add a group</button></p>
     <div id="devices-note" class="hint"></div>
   </section>
+
+  <section>
+    <h2>Routines</h2>
+    <p class="sub">Several things at once, when asked or at a set time. Set up and changed by phone: dial 345 and ask the porter.</p>
+    <div id="routines"><span class="hint">Loading…</span></div>
+  </section>
+
   <section>
     <h2>News line (235)</h2>
     <p class="sub">The news services the bulletin is drawn from: RSS feeds, up to ten. A local station's feed makes it feel like home.</p>
     <div id="feeds"></div>
     <p><button id="add-feed">+ Add a feed</button></p>
   </section>
+
   <section>
     <h2>Who can sign in</h2>
     <p class="sub">Google accounts that may use the softphone and change these settings. Owners (set when the relay was installed) can always sign in.</p>

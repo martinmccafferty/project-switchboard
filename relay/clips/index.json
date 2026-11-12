@@ -84,6 +84,26 @@
       "text": "One moment, let me take a look.",
       "click": false,
       "seconds": 2.5
+    },
+    "announce-run_routine": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1
+    },
+    "announce-list_routines": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.25
+    },
+    "announce-thermostat_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.75
+    },
+    "announce-set_thermostat": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 0.9
     }
   },
   "ethel": {
@@ -161,6 +181,26 @@
       "text": "One moment, let me take a look.",
       "click": false,
       "seconds": 2.64
+    },
+    "announce-run_routine": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.28
+    },
+    "announce-list_routines": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.28
+    },
+    "announce-thermostat_status": {
+      "text": "One moment, let me take a look.",
+      "click": false,
+      "seconds": 2.4
+    },
+    "announce-set_thermostat": {
+      "text": "Right away.",
+      "click": false,
+      "seconds": 1.24
     }
   }
 }

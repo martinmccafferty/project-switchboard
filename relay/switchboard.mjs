@@ -15,6 +15,9 @@ import { weatherCall, prepareWeatherLine } from './weatherline.mjs';
 import { handleSettingsApi } from './settings-api.mjs';
 import { handleAuth, phoneAllowed, checkAuthConfig } from './auth.mjs';
 import { attachBridge, bridgeAllowed } from './lights.mjs';
+import { startSchedule } from './routines.mjs';
+import { handleGoogleHome } from './googlehome.mjs';
+import { startHouse, refreshHouse } from './house.mjs';
 import { homeLine } from './homeline.mjs';
 import { newsCall } from './newsline.mjs';
 import { directoryCall, prepareDirectory, directoryLines } from './directory.mjs';
@@ -285,6 +288,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 const server = http.createServer(async (req, res) => {
   if (req.url === '/healthz') { res.writeHead(200).end('ok'); return; } // Railway's health check; says nothing
   if (await handleAuth(req, res)) return; // sign-in pages, or turned away for not being signed in
+  if (await handleGoogleHome(req, res)) return; // connecting the household's Google Home (D-50)
   // The settings page's API; after a save, the weather menu is re-voiced if the home location changed.
   if (await handleSettingsApi(req, res, { onSaved: () => prepareWeatherLine().catch(() => {}) })) return;
   const name = req.url === '/' ? 'index.html' : req.url.split('?')[0] === '/settings' ? 'settings.html' : path.basename(req.url.split('?')[0]);
@@ -309,6 +313,8 @@ wss.on('connection', (ws, req) => {
   console.log(`[${now()}] Phone connected from ${from}`);
   phoneLine(ws, from);
 });
+startSchedule((m) => console.log(`[${now()}] ${m}`)); // routines that run by themselves (D-49)
+startHouse((m) => console.log(`[${now()}] ${m}`)); // the house as Google Home knows it, if connected (D-51)
 server.listen(PORT, () => {
   prepareWeatherLine().catch((err) => console.log(`Weather menu not voiced yet (${err.message}); first caller will wait`));
   prepareDirectory().catch((err) => console.log(`Directory not voiced yet (${err.message}); first caller will wait`));
