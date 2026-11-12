@@ -34,3 +34,4 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - The ESP32 can be unplugged at any time (no shutdown needed); the last uploaded sketch runs again on next power-up. Just don't unplug mid-upload.
 - Don't try to strip a phone line cord: its wires are tinsel (metal ribbon round a thread) with clear insulation and are nearly impossible to strip or burn clean. Use an RJ11 jack with screw terminals (keystone jack or breakout board) and clamp Dupont pins under the screws.
 - Multimeter: black probe in COM, red in VΩmA for everything except large currents (10A socket).
+- Kit resistors may use 5-band (1%) colour codes: 10 kΩ is brown, black, black, red, brown, not the familiar brown, black, orange. When in doubt, measure (20k Ω range: 10 kΩ reads ~10.0). Don't confuse the 10 Ω and 10 kΩ boxes.
