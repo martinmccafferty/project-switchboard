@@ -83,7 +83,10 @@ export function operatorCall({ out, clips, status, opening = null, onTransfer = 
   // When the caller was last audibly speaking (measured here, for timing what the caller actually waits).
   let lastVoicedAt = 0; let floorDb = -60;
   // Live transcription opens while the greeting plays. In semantic mode it also decides when the caller is done.
-  const listener = createListener({ onTurn: (text) => { if (active && listening) handleTurn(async () => ({ text, live: true })); } });
+  const listener = createListener({
+    onTurn: (text) => { if (active && listening) handleTurn(async () => ({ text, live: true })); },
+    lastVoicedAt: () => lastVoicedAt,
+  });
   const detector = new TurnDetector(listener);
   // On an ordinary call, reminders that rang unanswered are mentioned (once) early in the call.
   const missed = opening || !isDoris ? [] : takeMissed();
