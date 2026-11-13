@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.100)
+**Last updated:** 2026-11-12 (Log v1.101)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -170,6 +170,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-35 | Starter kit resistor values (labeled boxes): **10 Ω, 100 Ω, 220 Ω, 330 Ω, 1 kΩ, 2.2 kΩ, 10 kΩ, 100 kΩ, 1 MΩ**. No 20 kΩ or 22 kΩ. Kit also has push buttons, LEDs, small ceramic capacitors and a rainbow Dupont ribbon | Martin, P-18 | 2026-11-12 |
 | C-36 | **The AG1171 (marked "AG1171 3R") has its 14 pins in two groups of 7 with a gap of about 4 empty positions between them** (5 pitches from the 7th to the 8th pin), not one continuous row as assumed. **No pin-1 marking found** on either side. Front: DC-DC inductor ("470") and a 4.7 µF electrolytic at the labeled end; LM339 and LM324 chips. The breadboard layout in D-59 must be revised once pin 1 is identified (meter test) | Martin, P-20a/b | 2026-11-13 |
 | C-37 | **AG1171 pin map by position from the coil end** (T-052): 1 = PD (14) · 2 = +VPWR (13) · 3 = GNDPWR (12) · 4 = NC (11) · 5 = VOUT (10) · 6 = VIN (9) · 7 = NC (8) · *gap* · 8 = NC (7) · 9 = NC (6) · 10 = SHK (5) · 11 = RM (4) · 12 = F/R (3) · 13 = TIP (2) · 14 = RING (1). The four NC pins flank the gap and sit at position 4 | T-052 | 2026-11-13 |
+| C-38 | **The ESP32 board's "5Vin" pin does not output USB power.** Board on USB, nothing attached: 3V3 pin reads 3.0–3.3 V, 5Vin reads only ~2.35 V (floating), collapsing to 0 under load. On this board 5Vin is an input (diode-isolated from USB). So the AG1171 can't be powered from it; it can instead be powered from the breadboard power module, and later the ESP32 itself can be fed through 5Vin from the same supply | Martin, meter | 2026-11-13 |
 
 ---
 
@@ -395,6 +396,7 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 - Pin headers pre-soldered; breadboard-ready.
 - Left header (top→bottom): 3V3, 3V3, RST, 4, 5, 6, 7, 15, 16, 17, 18, 8, 3, 46, 9, 10, 11, 12, 13, 14, 5Vin, GND.
 - Right header (top→bottom): GND, TX, RX, 1, 2, 42, 41, 40, 39, 38, 37, 36, 35, 0, 45, 48, 47, 21, 20, 19, GND, GND.
+- **5Vin is power input only** on this board: it doesn't pass USB 5 V out (C-38).
 - Avoid: GPIO 35, 36, 37 (used by octal PSRAM); GPIO 0, 3, 45, 46 (boot-strapping pins); GPIO 19/20 (native USB).
 - Onboard RGB LED on GPIO 48 (confirmed, C-26).
 - **Upload procedure:** with USB CDC On Boot enabled, normal **Upload** works without buttons (T-003). Fallback if it fails (C-27): hold BOOT, tap RST, release BOOT → Tools → Port → pick the `usbmodem…` entry → Upload → press RST.
@@ -526,3 +528,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-13 | v1.98 | (claude.ai chat) C-36: AG1171 pins in two groups of 7 with a gap, no pin-1 mark; layout on hold pending meter test; photos P-20a/b |
 | 2026-11-13 | v1.99 | (claude.ai chat) T-052: pin 1 found by meter (far end; coil end = PD); C-37 pin map; D-60 revised layout |
 | 2026-11-13 | v1.100 | (claude.ai chat) T-053 unpowered wiring check passed (split rails found and bridged) |
+| 2026-11-13 | v1.101 | (claude.ai chat) C-38: ESP32 5Vin is input-only; first power-on moves to the breadboard power module |

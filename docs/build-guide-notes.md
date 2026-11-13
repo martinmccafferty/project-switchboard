@@ -38,3 +38,4 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - The AG1171 has no pin-1 marking and its pins come in two groups of 7 with a gap. Pin 1 (RING) is the end **away** from the round coil; the coil end is pin 14 (PD), then +5 V, then GND. Check: Ω between the 10th pin from the coil (SHK) and the 2nd (+5 V) reads ~10 kΩ.
 - When probing, don't hold the probe tips or pins with your fingers: readings go unstable.
 - Many 830-hole breadboards split their power rails halfway along (a gap in the printed red/blue lines). Bridge + to + and − to − across the break, and beep-test the rails before powering anything.
+- On these ESP32-S3 dev boards the "5Vin" pin is an input only: it won't supply USB 5 V to a breadboard (reads ~2.35 V floating). Power the line module from a breadboard power module instead.
