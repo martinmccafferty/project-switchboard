@@ -31,6 +31,7 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-18 | `p18-starter-kit-resistors.png` | Starter kit: labeled resistor boxes (10 Ω–1 MΩ), push buttons, LEDs, ceramic capacitors, rainbow jumper ribbon | 2026-11-12 |
 | P-19 | `p19-keystone-jacks-test.png` | RJ11 cord between two screw-terminal keystone jacks, jumpers clamped in the middle two terminals (continuity test) | 2026-11-13 |
 | P-20a/b | `p20a-ag1171-back.png`, `p20b-ag1171-front.png` | AG1171 module both sides: two groups of 7 pins with a gap; no pin-1 marking found | 2026-11-13 |
+| P-21 | `p21-ag1171-bench-wiring.png` | AG1171 on the breadboard with power, RM, F/R and line jumpers (before rail bridges were added) | 2026-11-13 |
 
 ## Wanted
 

@@ -37,3 +37,4 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - Kit resistors may use 5-band (1%) colour codes: 10 kΩ is brown, black, black, red, brown, not the familiar brown, black, orange. When in doubt, measure (20k Ω range: 10 kΩ reads ~10.0). Don't confuse the 10 Ω and 10 kΩ boxes.
 - The AG1171 has no pin-1 marking and its pins come in two groups of 7 with a gap. Pin 1 (RING) is the end **away** from the round coil; the coil end is pin 14 (PD), then +5 V, then GND. Check: Ω between the 10th pin from the coil (SHK) and the 2nd (+5 V) reads ~10 kΩ.
 - When probing, don't hold the probe tips or pins with your fingers: readings go unstable.
+- Many 830-hole breadboards split their power rails halfway along (a gap in the printed red/blue lines). Bridge + to + and − to − across the break, and beep-test the rails before powering anything.
