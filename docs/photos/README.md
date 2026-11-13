@@ -34,6 +34,7 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-21 | `p21-ag1171-bench-wiring.png` | AG1171 on the breadboard with power, RM, F/R and line jumpers (before rail bridges were added) | 2026-11-13 |
 | P-22a/b | `p22a-power-module-top.png`, `p22b-power-module-bottom.png` | Breadboard power module (USB-C in, two slide switches, rail headers) | 2026-11-13 |
 | P-23 | `p23-first-power-setup.png` | First power: breadboard power module on a USB-A-to-C cable, AG1171 wired, test leads | 2026-11-13 |
+| P-24 | `p24-first-ring-bench.jpeg` | First ring: TelPal on the bench line, AG1171 breadboard on the power module, ESP32 on the table wired by jumpers (SHK, RM, F/R, GND) | 2026-11-13 |
 
 ## Wanted
 
