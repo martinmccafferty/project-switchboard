@@ -3,6 +3,9 @@
 // -> 10 kOhm -> GPIO 7 (ADC1). While off-hook it prints the audio level once a second and decodes
 // touch-tone (DTMF) digits from the phone's dial. Levels also print on-hook (the noise floor with no call). Read-only on the line: no audio is sent yet.
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled. Serial Monitor at 115200.
+// Noise reduction (T-065): each 8 kHz sample can be the trimmed average of several quick ADC reads
+// (drop the highest and lowest, average the rest). Type o + Enter to switch it on/off and compare.
+// "voice-band rms" removes everything below ~200 Hz (hum, drift), which is what speech recognition would hear.
 // Wiring otherwise as 05-ring-test (SHK -> divider -> GPIO 4; RM -> GPIO 5 + 100k to ground; F/R -> GPIO 6).
 
 #include <math.h>
@@ -18,6 +21,11 @@ const char KEYS[4][4] = {{'1','2','3','A'},{'4','5','6','B'},{'7','8','9','C'},{
 float rowCoef[4], colCoef[4];
 
 int16_t buf[N];
+bool oversample = true;
+int readsPerSample = 1;          // measured in setup()
+float hpY = 0, hpPrev = 0;       // ~200 Hz high-pass state
+const float HP_A = 0.864f;       // RC/(RC+dt) for fc = 200 Hz at 8 kHz
+double hpSq = 0;
 bool offHook = false, lastRaw = false;
 unsigned long rawChangedAt = 0, lastLevelPrint = 0;
 char lastSeen = 0, reported = 0;
@@ -69,8 +77,16 @@ void setup() {
     rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / FS);
     colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / FS);
   }
+  // how many ADC reads fit comfortably in one 125 us sample period?
+  unsigned long t0 = micros();
+  for (int i = 0; i < 200; i++) analogRead(AUDIO_PIN);
+  float readUs = (micros() - t0) / 200.0f;
+  readsPerSample = (int)((PERIOD_US * 0.7f) / readUs);
+  if (readsPerSample < 1) readsPerSample = 1;
+  if (readsPerSample > 16) readsPerSample = 16;
   Serial.begin(115200);
   delay(1500);
+  Serial.printf("One ADC read takes %.1f us; averaging %d reads per sample (type o + Enter to toggle)\n", readUs, readsPerSample);
   offHook = lastRaw = digitalRead(SHK_PIN);
   Serial.println();
   Serial.println("Project Switchboard - line listen (06-line-listen)");
@@ -84,7 +100,23 @@ void loop() {
   for (int i = 0; i < N; i++) {
     while (micros() - t < PERIOD_US) {}
     t += PERIOD_US;
-    buf[i] = analogRead(AUDIO_PIN);
+    if (!oversample || readsPerSample < 3) {
+      buf[i] = analogRead(AUDIO_PIN);
+    } else {
+      long sum = 0; int mn = 4095, mx = 0;
+      for (int k = 0; k < readsPerSample; k++) {
+        int v = analogRead(AUDIO_PIN);
+        sum += v; if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+      buf[i] = (int16_t)((sum - mn - mx) / (readsPerSample - 2));   // trimmed mean: spikes dropped
+    }
+  }
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'o' || c == 'O') {
+      oversample = !oversample;
+      Serial.printf("Averaging %s\n", oversample ? "ON" : "OFF (single reads)");
+    }
   }
 
   // hook (checked once per block, ~26 ms, which is also our debounce)
@@ -105,16 +137,21 @@ void loop() {
     if (buf[i] < statMin) statMin = buf[i];
     if (buf[i] > statMax) statMax = buf[i];
     statSum += buf[i]; statSq += (double)buf[i] * buf[i]; statN++;
+    float x = buf[i];
+    hpY = HP_A * (hpY + x - hpPrev); hpPrev = x;
+    hpSq += (double)hpY * hpY;
   }
   if (millis() - lastLevelPrint >= 1000) {
     lastLevelPrint = millis();
     double mean = statSum / statN;
     double rms = sqrt(statSq / statN - mean * mean);
     const float mvPerCount = 3100.0f / 4095.0f;
-    Serial.printf("  %s level: middle %4.0f mV, swing %4.0f mV peak-to-peak, rms %5.1f mV%s\n",
-                  offHook ? "OFF-HOOK" : "on-hook ", mean * mvPerCount, (statMax - statMin) * mvPerCount, rms * mvPerCount,
+    double hpRms = sqrt(hpSq / statN);
+    Serial.printf("  %s [%s] level: middle %4.0f mV, swing %4.0f mV p-p, rms %5.1f mV, voice-band rms %5.1f mV%s\n",
+                  offHook ? "OFF-HOOK" : "on-hook ", oversample ? "avg" : "single",
+                  mean * mvPerCount, (statMax - statMin) * mvPerCount, rms * mvPerCount, hpRms * mvPerCount,
                   (statMin <= 5 || statMax >= 4090) ? "  << CLIPPING" : "");
-    statMin = 4095; statMax = 0; statSum = statSq = 0; statN = 0;
+    statMin = 4095; statMax = 0; statSum = statSq = 0; statN = 0; hpSq = 0;
   }
   if (!offHook) return;
 
