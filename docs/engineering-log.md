@@ -565,3 +565,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-13 | v1.116 | (claude.ai chat) T-063: attenuator removes clipping; digits still decode; noise floor check pending |
 | 2026-11-13 | v1.117 | (claude.ai chat) T-064: noise floor ~35 mV rms even on-hook (bench electronics, not the line) |
 | 2026-11-13 | v1.118 | (claude.ai chat) T-065: noise is ESP32-side; `06-line-listen` gains trimmed-mean oversampling and voice-band noise readout |
+| 2026-11-13 | v1.119 | (claude.ai chat) `firmware/06b-line-listen-avg`: same code as the updated 06, in a new folder (the Mac's Arduino IDE kept opening an older 06) |
