@@ -1,0 +1,136 @@
+// Project Switchboard - Phase 4 audio, step 1 (T-061/T-062): the ESP32 hears the line.
+// AG1171 VOUT (pos 5) -> 100 nF -> row W (biased to ~1.65 V by 100k to ESP32 3V3 and 100k to ground)
+// -> 10 kOhm -> GPIO 7 (ADC1). While off-hook it prints the audio level once a second and decodes
+// touch-tone (DTMF) digits from the phone's dial. Read-only on the line: no audio is sent yet.
+// Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled. Serial Monitor at 115200.
+// Wiring otherwise as 05-ring-test (SHK -> divider -> GPIO 4; RM -> GPIO 5 + 100k to ground; F/R -> GPIO 6).
+
+#include <math.h>
+
+const int SHK_PIN = 4, RM_PIN = 5, FR_PIN = 6, AUDIO_PIN = 7, LED_PIN = 48;
+const int FS = 8000;              // samples per second (telephone rate)
+const int N = 205;                // samples per block (~25.6 ms), the classic DTMF Goertzel size
+const unsigned long PERIOD_US = 1000000UL / FS;
+
+const float ROW_HZ[4] = {697, 770, 852, 941};
+const float COL_HZ[4] = {1209, 1336, 1477, 1633};
+const char KEYS[4][4] = {{'1','2','3','A'},{'4','5','6','B'},{'7','8','9','C'},{'*','0','#','D'}};
+float rowCoef[4], colCoef[4];
+
+int16_t buf[N];
+bool offHook = false, lastRaw = false;
+unsigned long rawChangedAt = 0, lastLevelPrint = 0;
+char lastSeen = 0, reported = 0;
+int sameCount = 0, quietCount = 0;
+String dialed = "";
+// level stats accumulated over ~1 s
+long statMin = 4095, statMax = 0; double statSum = 0, statSq = 0; long statN = 0;
+
+void led(int r, int g, int b) { rgbLedWrite(LED_PIN, r, g, b); }
+
+float goertzel(const float* x, float coef) {
+  float s1 = 0, s2 = 0;
+  for (int i = 0; i < N; i++) { float s = x[i] + coef * s1 - s2; s2 = s1; s1 = s; }
+  return s1 * s1 + s2 * s2 - coef * s1 * s2;   // power at that frequency
+}
+
+char detectDigit() {
+  static float x[N];
+  double mean = 0;
+  for (int i = 0; i < N; i++) mean += buf[i];
+  mean /= N;
+  double energy = 0;
+  for (int i = 0; i < N; i++) { x[i] = buf[i] - mean; energy += x[i] * x[i]; }
+  float rms = sqrt(energy / N);
+  if (rms < 15) return 0;                       // too quiet to be a tone (ADC counts)
+  float norm = 2.0f / (N * energy);             // ~ fraction of the block's energy at a frequency
+  int br = 0, bc = 0; float r[4], c[4];
+  for (int i = 0; i < 4; i++) {
+    r[i] = goertzel(x, rowCoef[i]) * norm;
+    c[i] = goertzel(x, colCoef[i]) * norm;
+    if (r[i] > r[br]) br = i;
+    if (c[i] > c[bc]) bc = i;
+  }
+  if (r[br] < 0.12f || c[bc] < 0.12f || r[br] + c[bc] < 0.55f) return 0;   // not two clean tones
+  for (int i = 0; i < 4; i++) {                 // the winners must clearly beat the others
+    if (i != br && r[i] * 4 > r[br]) return 0;
+    if (i != bc && c[i] * 4 > c[bc]) return 0;
+  }
+  return KEYS[br][bc];
+}
+
+void setup() {
+  digitalWrite(RM_PIN, LOW);  pinMode(RM_PIN, OUTPUT);  digitalWrite(RM_PIN, LOW);
+  digitalWrite(FR_PIN, HIGH); pinMode(FR_PIN, OUTPUT);  digitalWrite(FR_PIN, HIGH);
+  pinMode(SHK_PIN, INPUT);
+  analogReadResolution(12);
+  analogSetPinAttenuation(AUDIO_PIN, ADC_11db);  // 0 to ~3.1 V
+  for (int i = 0; i < 4; i++) {
+    rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / FS);
+    colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / FS);
+  }
+  Serial.begin(115200);
+  delay(1500);
+  offHook = lastRaw = digitalRead(SHK_PIN);
+  Serial.println();
+  Serial.println("Project Switchboard - line listen (06-line-listen)");
+  Serial.println("Lift the handset, then dial. Levels print once a second while off-hook.");
+  led(0, 0, 8);
+}
+
+void loop() {
+  // one block of N samples at 8 kHz
+  unsigned long t = micros();
+  for (int i = 0; i < N; i++) {
+    while (micros() - t < PERIOD_US) {}
+    t += PERIOD_US;
+    buf[i] = analogRead(AUDIO_PIN);
+  }
+
+  // hook (checked once per block, ~26 ms, which is also our debounce)
+  bool raw = digitalRead(SHK_PIN);
+  if (raw == lastRaw && raw != offHook) {
+    offHook = raw;
+    if (offHook) { Serial.println("OFF-HOOK - listening"); dialed = ""; led(0, 40, 0); }
+    else {
+      Serial.println("ON-HOOK");
+      if (dialed.length()) Serial.printf("Number dialed: %s\n", dialed.c_str());
+      led(0, 0, 8);
+    }
+  }
+  lastRaw = raw;
+  if (!offHook) return;
+
+  // level statistics
+  for (int i = 0; i < N; i++) {
+    if (buf[i] < statMin) statMin = buf[i];
+    if (buf[i] > statMax) statMax = buf[i];
+    statSum += buf[i]; statSq += (double)buf[i] * buf[i]; statN++;
+  }
+  if (millis() - lastLevelPrint >= 1000) {
+    lastLevelPrint = millis();
+    double mean = statSum / statN;
+    double rms = sqrt(statSq / statN - mean * mean);
+    const float mvPerCount = 3100.0f / 4095.0f;
+    Serial.printf("  level: middle %4.0f mV, swing %4.0f mV peak-to-peak, rms %5.1f mV%s\n",
+                  mean * mvPerCount, (statMax - statMin) * mvPerCount, rms * mvPerCount,
+                  (statMin <= 5 || statMax >= 4090) ? "  << CLIPPING" : "");
+    statMin = 4095; statMax = 0; statSum = statSq = 0; statN = 0;
+  }
+
+  // DTMF: a digit counts after 2 matching blocks (~50 ms); a new one needs a gap first
+  char d = detectDigit();
+  if (d) {
+    if (d == lastSeen) sameCount++; else { lastSeen = d; sameCount = 1; }
+    quietCount = 0;
+    if (sameCount == 2 && d != reported) {
+      reported = d;
+      dialed += d;
+      Serial.printf("DIGIT: %c   (so far: %s)\n", d, dialed.c_str());
+      led(40, 30, 0);
+    }
+  } else {
+    lastSeen = 0; sameCount = 0;
+    if (++quietCount >= 2) { reported = 0; led(0, 40, 0); }
+  }
+}
