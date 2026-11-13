@@ -29,6 +29,7 @@ Photos of the TelPal 301 (MS-301H), referenced from `docs/engineering-log.md` by
 | P-16a–d | `p16a-…`–`p16d-…` | Base compartment and tape measurements (≈ 75 × 40 × 25 mm); "3.7V" recess | 2026-11-12 |
 | P-17 | `p17-line-cord-cut.png` | Line cord cut: 2-conductor cord, jacket stripped | 2026-11-12 |
 | P-18 | `p18-starter-kit-resistors.png` | Starter kit: labeled resistor boxes (10 Ω–1 MΩ), push buttons, LEDs, ceramic capacitors, rainbow jumper ribbon | 2026-11-12 |
+| P-19 | `p19-keystone-jacks-test.png` | RJ11 cord between two screw-terminal keystone jacks, jumpers clamped in the middle two terminals (continuity test) | 2026-11-13 |
 
 ## Wanted
 
