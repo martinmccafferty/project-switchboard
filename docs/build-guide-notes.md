@@ -35,3 +35,5 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - Don't try to strip a phone line cord: its wires are tinsel (metal ribbon round a thread) with clear insulation and are nearly impossible to strip or burn clean. Use an RJ11 jack with screw terminals (keystone jack or breakout board) and clamp Dupont pins under the screws.
 - Multimeter: black probe in COM, red in VΩmA for everything except large currents (10A socket).
 - Kit resistors may use 5-band (1%) colour codes: 10 kΩ is brown, black, black, red, brown, not the familiar brown, black, orange. When in doubt, measure (20k Ω range: 10 kΩ reads ~10.0). Don't confuse the 10 Ω and 10 kΩ boxes.
+- The AG1171 has no pin-1 marking and its pins come in two groups of 7 with a gap. Pin 1 (RING) is the end **away** from the round coil; the coil end is pin 14 (PD), then +5 V, then GND. Check: Ω between the 10th pin from the coil (SHK) and the 2nd (+5 V) reads ~10 kΩ.
+- When probing, don't hold the probe tips or pins with your fingers: readings go unstable.
