@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.102)
+**Last updated:** 2026-11-12 (Log v1.103)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -171,6 +171,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-36 | **The AG1171 (marked "AG1171 3R") has its 14 pins in two groups of 7 with a gap of about 4 empty positions between them** (5 pitches from the 7th to the 8th pin), not one continuous row as assumed. **No pin-1 marking found** on either side. Front: DC-DC inductor ("470") and a 4.7 µF electrolytic at the labeled end; LM339 and LM324 chips. The breadboard layout in D-59 must be revised once pin 1 is identified (meter test) | Martin, P-20a/b | 2026-11-13 |
 | C-37 | **AG1171 pin map by position from the coil end** (T-052): 1 = PD (14) · 2 = +VPWR (13) · 3 = GNDPWR (12) · 4 = NC (11) · 5 = VOUT (10) · 6 = VIN (9) · 7 = NC (8) · *gap* · 8 = NC (7) · 9 = NC (6) · 10 = SHK (5) · 11 = RM (4) · 12 = F/R (3) · 13 = TIP (2) · 14 = RING (1). The four NC pins flank the gap and sit at position 4 | T-052 | 2026-11-13 |
 | C-38 | **The ESP32 board's "5Vin" pin does not output USB power.** Board on USB, nothing attached: 3V3 pin reads 3.0–3.3 V, 5Vin reads only ~2.35 V (floating), collapsing to 0 under load. On this board 5Vin is an input (diode-isolated from USB). So the AG1171 can't be powered from it; it can instead be powered from the breadboard power module, and later the ESP32 itself can be fed through 5Vin from the same supply | Martin, meter | 2026-11-13 |
+| C-39 | **Breadboard power module:** gets no power from a USB-C-to-C cable (Mac or modern charger: the module lacks the USB-C identification resistors); works with a **USB-A-to-C cable** from a USB-A outlet. Slide switch: **red LED = "5 V" setting, measuring ~4.4 V** on the rails with the AG1171 attached (diode drop + load; within the AG1171's 3.1–5.5 V); other position ~3 V. Plugged in the right way round: red probe on the red (+) line reads positive. First power to the AG1171 applied 2026-11-13 | Martin, meter, P-23 | 2026-11-13 |
 
 ---
 
@@ -530,3 +531,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-13 | v1.100 | (claude.ai chat) T-053 unpowered wiring check passed (split rails found and bridged) |
 | 2026-11-13 | v1.101 | (claude.ai chat) C-38: ESP32 5Vin is input-only; first power-on moves to the breadboard power module |
 | 2026-11-13 | v1.102 | (claude.ai chat) Breadboard power module found in the kit (USB-C input); to be checked with the meter before use |
+| 2026-11-13 | v1.103 | (claude.ai chat) C-39: power module needs a USB-A cable; 5 V setting ≈ 4.4 V; polarity correct; first power to the AG1171 |

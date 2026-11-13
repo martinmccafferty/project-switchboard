@@ -39,3 +39,4 @@ practical lessons and gotchas as we hit them, so the final guide is easy to writ
 - When probing, don't hold the probe tips or pins with your fingers: readings go unstable.
 - Many 830-hole breadboards split their power rails halfway along (a gap in the printed red/blue lines). Bridge + to + and − to − across the break, and beep-test the rails before powering anything.
 - On these ESP32-S3 dev boards the "5Vin" pin is an input only: it won't supply USB 5 V to a breadboard (reads ~2.35 V floating). Power the line module from a breadboard power module instead.
+- Cheap breadboard power modules with a USB-C socket often get no power from a USB-C-to-C cable (no identification resistors). Use a USB-A-to-C cable. Check polarity before connecting anything: red probe on the red (+) line must read positive.
