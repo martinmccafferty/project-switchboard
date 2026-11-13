@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.101)
+**Last updated:** 2026-11-12 (Log v1.102)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -85,7 +85,7 @@ ESP32 is a **thin client**: phone control + audio streaming. A separate **AI rel
 |---|---|---|---|
 | ESP32-S3 DevKitC-1-style, module S3-N16R8 (16 MB flash, 8 MB octal PSRAM) | 2 (2-pack) | USB + COM USB-C ports; headers pre-soldered; external antenna included, not needed (D-06) | Main controller (one spare) |
 | 830-point breadboard | 1 | Prototyping only | Prototyping |
-| USB breadboard power supply (3.3 V / 5 V) | 1 | | Likely unneeded |
+| USB breadboard power supply (3.3 V / 5 V) | 1 | **USB-C input**, two slide switches (S1, S2), LEDs LD1–LD4, a 2×3 pin header at each end that plugs onto the rails; confirmed in the kit 2026-11-13 (listed in the original handover; not verified until then) | **Bench supply for the AG1171** (C-38: ESP32 5Vin can't supply it) |
 | 320+ component starter kit | 1 | Contents to confirm when needed | Misc. resistors/LEDs/etc. |
 | Dupont jumper wires (M-F, M-M) | assorted | | Prototyping |
 | Digital multimeter | 1 | AstroAI AM33D, manual-ranging, 1999 max display | Testing |
@@ -529,3 +529,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-13 | v1.99 | (claude.ai chat) T-052: pin 1 found by meter (far end; coil end = PD); C-37 pin map; D-60 revised layout |
 | 2026-11-13 | v1.100 | (claude.ai chat) T-053 unpowered wiring check passed (split rails found and bridged) |
 | 2026-11-13 | v1.101 | (claude.ai chat) C-38: ESP32 5Vin is input-only; first power-on moves to the breadboard power module |
+| 2026-11-13 | v1.102 | (claude.ai chat) Breadboard power module found in the kit (USB-C input); to be checked with the meter before use |
