@@ -1,7 +1,7 @@
 // Project Switchboard - Phase 4 audio, step 1 (T-061/T-062): the ESP32 hears the line.
-// AG1171 VOUT (pos 5) -> 100 nF -> row W (biased to ~1.65 V by 100k to ESP32 3V3 and 100k to ground)
+// AG1171 VOUT (pos 5) -> 100 kOhm -> row T -> 100 nF -> row W (the 100k + bias network divide the level by ~3, T-062) (biased to ~1.65 V by 100k to ESP32 3V3 and 100k to ground)
 // -> 10 kOhm -> GPIO 7 (ADC1). While off-hook it prints the audio level once a second and decodes
-// touch-tone (DTMF) digits from the phone's dial. Read-only on the line: no audio is sent yet.
+// touch-tone (DTMF) digits from the phone's dial. Levels also print on-hook (the noise floor with no call). Read-only on the line: no audio is sent yet.
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled. Serial Monitor at 115200.
 // Wiring otherwise as 05-ring-test (SHK -> divider -> GPIO 4; RM -> GPIO 5 + 100k to ground; F/R -> GPIO 6).
 
@@ -74,7 +74,7 @@ void setup() {
   offHook = lastRaw = digitalRead(SHK_PIN);
   Serial.println();
   Serial.println("Project Switchboard - line listen (06-line-listen)");
-  Serial.println("Lift the handset, then dial. Levels print once a second while off-hook.");
+  Serial.println("Levels print once a second. Lift the handset, then talk or dial.");
   led(0, 0, 8);
 }
 
@@ -99,9 +99,8 @@ void loop() {
     }
   }
   lastRaw = raw;
-  if (!offHook) return;
 
-  // level statistics
+  // level statistics (on-hook too: shows the noise floor with the phone idle)
   for (int i = 0; i < N; i++) {
     if (buf[i] < statMin) statMin = buf[i];
     if (buf[i] > statMax) statMax = buf[i];
@@ -112,11 +111,12 @@ void loop() {
     double mean = statSum / statN;
     double rms = sqrt(statSq / statN - mean * mean);
     const float mvPerCount = 3100.0f / 4095.0f;
-    Serial.printf("  level: middle %4.0f mV, swing %4.0f mV peak-to-peak, rms %5.1f mV%s\n",
-                  mean * mvPerCount, (statMax - statMin) * mvPerCount, rms * mvPerCount,
+    Serial.printf("  %s level: middle %4.0f mV, swing %4.0f mV peak-to-peak, rms %5.1f mV%s\n",
+                  offHook ? "OFF-HOOK" : "on-hook ", mean * mvPerCount, (statMax - statMin) * mvPerCount, rms * mvPerCount,
                   (statMin <= 5 || statMax >= 4090) ? "  << CLIPPING" : "");
     statMin = 4095; statMax = 0; statSum = statSq = 0; statN = 0;
   }
+  if (!offHook) return;
 
   // DTMF: a digit counts after 2 matching blocks (~50 ms); a new one needs a gap first
   char d = detectDigit();
