@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-12 (Log v1.97)
+**Last updated:** 2026-11-12 (Log v1.98)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -168,6 +168,7 @@ Purchase decision happens at the Phase 3 gate (D-03).
 | C-33 | Base compartment (behind the covered panel, C-22) measures roughly **3 in × 1⅝ in × ~1 in deep (≈ 75 × 40 × 25 mm)** by tape (Martin's photos; to confirm). It is open to the base interior (the dial-board ribbon and a small board are visible through it), so a battery there shares space with the electronics. A separate small recess near the jacks is molded "3.7V", suggesting the casing was designed for an optional 3.7 V cell in some variant | Martin, photos | 2026-11-12 |
 | C-34 | The line cord is a **2-conductor** cord (two wires with clear insulation), so both wires are the line pair (Tip and Ring). Their order doesn't matter: the phone's bridge rectifier (U6, C-16) accepts either polarity. Wires look like fine tinsel/stranded conductors: handle gently | Martin, P-17 | 2026-11-12 |
 | C-35 | Starter kit resistor values (labeled boxes): **10 Ω, 100 Ω, 220 Ω, 330 Ω, 1 kΩ, 2.2 kΩ, 10 kΩ, 100 kΩ, 1 MΩ**. No 20 kΩ or 22 kΩ. Kit also has push buttons, LEDs, small ceramic capacitors and a rainbow Dupont ribbon | Martin, P-18 | 2026-11-12 |
+| C-36 | **The AG1171 (marked "AG1171 3R") has its 14 pins in two groups of 7 with a gap of about 4 empty positions between them** (5 pitches from the 7th to the 8th pin), not one continuous row as assumed. **No pin-1 marking found** on either side. Front: DC-DC inductor ("470") and a 4.7 µF electrolytic at the labeled end; LM339 and LM324 chips. The breadboard layout in D-59 must be revised once pin 1 is identified (meter test) | Martin, P-20a/b | 2026-11-13 |
 
 ---
 
@@ -518,3 +519,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-12 | v1.95 | (claude.ai chat) 10 × 10 kΩ confirmed (9.97 kΩ measured) |
 | 2026-11-12 | v1.96 | D-58 the household's shopping list (Doris and the porter, its own page, live on the softphone, named in 411 and in what Doris can do); T-50 |
 | 2026-11-13 | v1.97 | (claude.ai chat) T-051 line connection passed; D-59 first AG1171 bench layout; photo P-19 |
+| 2026-11-13 | v1.98 | (claude.ai chat) C-36: AG1171 pins in two groups of 7 with a gap, no pin-1 mark; layout on hold pending meter test; photos P-20a/b |
