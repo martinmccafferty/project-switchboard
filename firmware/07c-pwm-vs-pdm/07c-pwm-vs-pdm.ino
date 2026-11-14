@@ -21,8 +21,9 @@ const int PDM_RATE = 16000;
 I2SClass i2s;
 int16_t pdmBuf[256];
 
-// PWM: 10-bit at 78.125 kHz (80 MHz / 1024), duty updated 8000 times a second
-const int PWM_FREQ = 78125, PWM_BITS = 10, PWM_MID = 512;
+// PWM: 9-bit at 62.5 kHz (falls back to 8-bit at 78 kHz), duty updated 8000 times a second.
+// (10-bit at 78 kHz needs a faster LEDC clock than this core provides: "div_param=0", T-077.)
+int PWM_FREQ = 62500, PWM_BITS = 9, PWM_MID = 256;
 const int PWM_RATE = 8000;
 const unsigned long PWM_PERIOD_US = 1000000UL / PWM_RATE;   // 125 us
 
@@ -41,11 +42,15 @@ void startPdm() {
 }
 
 void startPwm() {
+  PWM_FREQ = 62500; PWM_BITS = 9;
   bool ok = ledcAttach(OUT_PIN, PWM_FREQ, PWM_BITS);
+  if (!ok) { PWM_FREQ = 78125; PWM_BITS = 8; ok = ledcAttach(OUT_PIN, PWM_FREQ, PWM_BITS); }
+  PWM_MID = 1 << (PWM_BITS - 1);
   if (ok) ledcWrite(OUT_PIN, PWM_MID);
   nextSampleUs = micros();
   lateSamples = 0;
-  Serial.printf("Method: PWM %s\n", ok ? "running (78 kHz, 10-bit, 8 kHz updates)" : "FAILED");
+  if (ok) Serial.printf("Method: PWM running (%d Hz, %d-bit, 8 kHz updates)\n", PWM_FREQ, PWM_BITS);
+  else    Serial.println("Method: PWM FAILED");
 }
 
 void switchMethod() {
