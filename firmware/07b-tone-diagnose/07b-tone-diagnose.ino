@@ -5,6 +5,7 @@
 //   v  volume: quiet / medium / loud
 //   m  format: mono <-> stereo (same sample sent to both channels)
 //   r  sample rate: 16000 -> 8000 -> 48000
+//   x  PDM output OFF (pin 15 held low, nothing sent) <-> ON: is the crackle from our output at all?
 // Every 2 s while off-hook it prints timing: if "late writes" climbs, the ESP32 isn't keeping the
 // audio fed (gaps = clicks). Hook on GPIO 4; RM low, F/R high as in 99.
 
@@ -20,7 +21,7 @@ const int FRAMES = 256;
 
 I2SClass i2s;
 int rateIdx = 0, level = 1;
-bool stereo = false, toneOn = true;
+bool stereo = false, toneOn = true, pdmOff = false;
 int16_t buf[FRAMES * 2];
 float phase = 0;
 bool offHook = false, lastRaw = false;
@@ -47,7 +48,7 @@ void setup() {
   delay(1500);
   Serial.println();
   Serial.println("Project Switchboard - tone diagnosis (07b-tone-diagnose)");
-  Serial.println("t tone/silence | v volume | m mono/stereo | r sample rate");
+  Serial.println("t tone/silence | v volume | m mono/stereo | r sample rate | x output off/on");
   startI2S();
   offHook = lastRaw = digitalRead(SHK_PIN);
   rawChangedAt = millis();
@@ -60,7 +61,24 @@ void loop() {
     if (c == 't' || c == 'T') { toneOn = !toneOn; Serial.printf("Sound: %s\n", toneOn ? "TONE" : "SILENCE"); }
     else if (c == 'v' || c == 'V') { level = (level + 1) % 3; Serial.printf("Volume: %s\n", LEVEL_NAMES[level]); }
     else if (c == 'm' || c == 'M') { stereo = !stereo; startI2S(); }
-    else if (c == 'r' || c == 'R') { rateIdx = (rateIdx + 1) % 3; startI2S(); }
+    else if (c == 'r' || c == 'R') { rateIdx = (rateIdx + 1) % 3; if (!pdmOff) startI2S(); }
+    else if (c == 'x' || c == 'X') {
+      pdmOff = !pdmOff;
+      if (pdmOff) {
+        i2s.end();
+        pinMode(PDM_OUT, OUTPUT); digitalWrite(PDM_OUT, LOW);
+        Serial.println("PDM OFF: pin 15 held low, nothing is being sent to the phone");
+      } else {
+        startI2S();
+      }
+    }
+  }
+  if (pdmOff) {
+    bool r2 = digitalRead(SHK_PIN);
+    if (r2 != lastRaw) { lastRaw = r2; rawChangedAt = millis(); }
+    if (r2 != offHook && millis() - rawChangedAt >= 30) { offHook = r2; Serial.println(offHook ? "OFF-HOOK" : "ON-HOOK"); }
+    delay(5);
+    return;
   }
 
   bool raw = digitalRead(SHK_PIN);
