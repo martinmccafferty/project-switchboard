@@ -21,6 +21,7 @@
 
 const char* VERSION = "99-regression v1: hook, ring, listen + DTMF";
 const int SHK_PIN = 4, RM_PIN = 5, FR_PIN = 6, LED_PIN = 48;   // audio on GPIO 7 = ADC1 channel 6
+const int TX_PIN = 15;   // transmit (07, not yet in 99): held low so it can't inject noise if wired
 const adc_channel_t AUDIO_CH = ADC_CHANNEL_6;
 
 // ---------- ringing (D-62) ----------
@@ -210,6 +211,7 @@ void setup() {
   digitalWrite(RM_PIN, LOW);  pinMode(RM_PIN, OUTPUT);  digitalWrite(RM_PIN, LOW);
   digitalWrite(FR_PIN, HIGH); pinMode(FR_PIN, OUTPUT);  digitalWrite(FR_PIN, HIGH);
   pinMode(SHK_PIN, INPUT);
+  pinMode(TX_PIN, OUTPUT); digitalWrite(TX_PIN, LOW);
   for (int i = 0; i < 4; i++) {
     rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / FS);
     colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / FS);
