@@ -6,6 +6,7 @@
 //   m  format: mono <-> stereo (same sample sent to both channels)
 //   r  sample rate: 16000 -> 8000 -> 48000
 //   x  PDM output OFF (pin 15 held low, nothing sent) <-> ON: is the crackle from our output at all?
+//   h  PDM output OFF with pin 15 held HIGH (3.3 V): crackle here = noise on the ESP32's own 3.3 V supply
 // Every 2 s while off-hook it prints timing: if "late writes" climbs, the ESP32 isn't keeping the
 // audio fed (gaps = clicks). Hook on GPIO 4; RM low, F/R high as in 99.
 
@@ -48,7 +49,7 @@ void setup() {
   delay(1500);
   Serial.println();
   Serial.println("Project Switchboard - tone diagnosis (07b-tone-diagnose)");
-  Serial.println("t tone/silence | v volume | m mono/stereo | r sample rate | x output off/on");
+  Serial.println("t tone/silence | v volume | m mono/stereo | r sample rate | x output off (low) | h output off (high)");
   startI2S();
   offHook = lastRaw = digitalRead(SHK_PIN);
   rawChangedAt = millis();
@@ -62,13 +63,15 @@ void loop() {
     else if (c == 'v' || c == 'V') { level = (level + 1) % 3; Serial.printf("Volume: %s\n", LEVEL_NAMES[level]); }
     else if (c == 'm' || c == 'M') { stereo = !stereo; startI2S(); }
     else if (c == 'r' || c == 'R') { rateIdx = (rateIdx + 1) % 3; if (!pdmOff) startI2S(); }
-    else if (c == 'x' || c == 'X') {
-      pdmOff = !pdmOff;
-      if (pdmOff) {
+    else if (c == 'x' || c == 'X' || c == 'h' || c == 'H') {
+      bool high = (c == 'h' || c == 'H');
+      if (!pdmOff) {
+        pdmOff = true;
         i2s.end();
-        pinMode(PDM_OUT, OUTPUT); digitalWrite(PDM_OUT, LOW);
-        Serial.println("PDM OFF: pin 15 held low, nothing is being sent to the phone");
+        pinMode(PDM_OUT, OUTPUT); digitalWrite(PDM_OUT, high ? HIGH : LOW);
+        Serial.printf("PDM OFF: pin 15 held %s, no audio is being sent\n", high ? "HIGH (3.3 V)" : "LOW (0 V)");
       } else {
+        pdmOff = false;
         startI2S();
       }
     }
