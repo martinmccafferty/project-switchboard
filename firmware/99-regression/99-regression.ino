@@ -1,17 +1,21 @@
 // Project Switchboard - 99-regression: "everything we've built so far", rerun after any rewiring or change.
-// Version 1 (2026-11-14) covers: hook detection (04), ringing + ring trip (05), line listening with
-// hardware-ADC averaging, levels and DTMF digit decoding (06c). Add each new verified feature here (D-66).
+// Version 2 (2026-11-16) covers: hook detection (04), ringing + ring trip (05), line listening with
+// hardware-ADC averaging, levels and DTMF digit decoding (06c), and NEW: speaking into the line by PWM (07c,
+// D-68) as a real dial tone (350 + 440 Hz) from lift until the first digit, plus a 300 ms hang-up check (Q-23).
+// v1 (2026-11-14): hook, ring, listen + DTMF. Add each new verified feature here (D-66).
 //
 // Serial Monitor at 115200. Commands (type the letter + Enter):
 //   r  ring (US cadence 2 s on / 4 s off, up to 4 rings; stops when answered)
 //   s  stop ringing
 //   l  levels on/off (audio level once a second)
 //   o  averaging on/off (compare the ADC noise with single conversions)
+//   d  dial tone on/off (on by default)
 //   ?  show this list and the checklist
 //
 // Wiring (D-60, D-61, D-63, D-64): SHK -> 10k -> row Z -> 100k -> ground; row Z -> GPIO 4.
 // RM (pos 11) -> GPIO 5, with 100k from pos 11 to ground. F/R (pos 12) -> GPIO 6.
 // VOUT (pos 5) -> 100k -> 100 nF -> row W (100k to ESP32 3V3, 100k to ground) -> 10k -> GPIO 7.
+// Speaking (D-65 as amended, D-68): GPIO 15 -> 2.2k -> P (10 nF to ground) -> 1k -> Q (10 nF to ground) -> 10 nF -> VIN (pos 6).
 // ESP32 GND -> breadboard ground. ESP32 3V3 goes only to the bias resistor.
 // LED: dim blue idle, green off-hook, red ringing, yellow flash on each digit.
 
@@ -19,9 +23,24 @@
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
-const char* VERSION = "99-regression v1: hook, ring, listen + DTMF";
+const char* VERSION = "99-regression v2: hook, ring, listen + DTMF, dial tone (PWM out)";
 const int SHK_PIN = 4, RM_PIN = 5, FR_PIN = 6, LED_PIN = 48;   // audio on GPIO 7 = ADC1 channel 6
-const int TX_PIN = 15;   // transmit (07, not yet in 99): held low so it can't inject noise if wired
+const int TX_PIN = 15;   // speaking: PWM (D-68)
+
+// ---------- speaking (D-68) ----------
+// A hardware timer interrupt sets the PWM duty 8000 times a second from a small queue of samples;
+// loop() keeps the queue topped up. The interrupt does integer maths only.
+const int TX_RATE = 8000;
+const int TX_LEVEL = 3300;                    // "medium" cap (D-68): louder upsets hands-free (Q-23)
+int pwmBits = 9, pwmMid = 256;
+const int TXQ = 1024;                         // 128 ms of audio
+volatile int16_t txq[TXQ];
+volatile uint16_t txHead = 0, txTail = 0;
+hw_timer_t* txTimer = NULL;
+bool dialToneEnabled = true, dialTone = false, answeringRing = false;
+unsigned long dialToneStart = 0;
+float ph350 = 0, ph440 = 0;
+const unsigned long HANGUP_MS = 300;          // on-hook must last this long to count as a hang-up (Q-23)
 const adc_channel_t AUDIO_CH = ADC_CHANNEL_6;
 
 // ---------- ringing (D-62) ----------
@@ -62,12 +81,50 @@ void led(int r, int g, int b) { rgbLedWrite(LED_PIN, r, g, b); }
 void showIdle() { if (offHook) led(0, 40, 0); else led(0, 0, 8); }
 
 void printHelp() {
-  Serial.println("Commands: r ring | s stop | l levels on/off | o averaging on/off | ? help");
-  Serial.println("Checklist: 1) handset down: on-hook levels ~10 mV voice-band [avg8]");
+  Serial.println("Commands: r ring | s stop | l levels on/off | o averaging on/off | d dial tone on/off | ? help");
+  Serial.println("Checklist: 1) handset down: on-hook levels ~5 mV voice-band [avg8]");
   Serial.println("           2) lift/replace handset and press HANDS FREE: OFF-HOOK / ON-HOOK each time");
-  Serial.println("           3) off-hook: dial digits -> DIGIT lines; hang up -> 'Number dialed'");
-  Serial.println("           4) r with handset down: bell rings 2 s on / 4 s off, 'SHK high 0 ms' per ring");
-  Serial.println("           5) r, then lift while the bell sounds: 'ANSWERED (ring trip)', bell stops");
+  Serial.println("           3) lift: a clean, crackle-free DIAL TONE in the earpiece");
+  Serial.println("           4) dial digits: dial tone stops at the first digit; DIGIT lines; hang up -> 'Number dialed'");
+  Serial.println("           5) r with handset down: bell rings 2 s on / 4 s off, 'SHK high 0 ms' per ring");
+  Serial.println("           6) r, then lift while the bell sounds: 'ANSWERED (ring trip)', bell stops");
+}
+
+// ===== speaking =====
+void onTx() {
+  int16_t v = 0;
+  uint16_t t = txTail;
+  if (t != txHead) { v = txq[t]; txTail = (t + 1) & (TXQ - 1); }
+  ledcWrite(TX_PIN, pwmMid + (((int32_t)v * (pwmMid - 1)) >> 15));
+}
+
+void feedTx() {
+  // keep the queue full: dial tone while wanted, silence otherwise
+  if (dialTone && millis() - dialToneStart > 30000) { dialTone = false; Serial.println("(dial tone timed out after 30 s)"); }
+  while (((txHead + 1) & (TXQ - 1)) != txTail) {
+    int16_t v = 0;
+    if (dialTone) {
+      v = (int16_t)((sinf(ph350) + sinf(ph440)) * (TX_LEVEL / 2));
+      ph350 += 2 * PI * 350.0f / TX_RATE; if (ph350 > 2 * PI) ph350 -= 2 * PI;
+      ph440 += 2 * PI * 440.0f / TX_RATE; if (ph440 > 2 * PI) ph440 -= 2 * PI;
+    }
+    txq[txHead] = v;
+    txHead = (txHead + 1) & (TXQ - 1);
+  }
+}
+
+bool startTx() {
+  pwmBits = 9;
+  bool ok = ledcAttach(TX_PIN, 62500, pwmBits);
+  if (!ok) { pwmBits = 8; ok = ledcAttach(TX_PIN, 78125, pwmBits); }
+  pwmMid = 1 << (pwmBits - 1);
+  if (!ok) return false;
+  ledcWrite(TX_PIN, pwmMid);
+  txTimer = timerBegin(1000000);               // 1 MHz tick
+  if (!txTimer) return false;
+  timerAttachInterrupt(txTimer, &onTx);
+  timerAlarm(txTimer, 1000000 / TX_RATE, true, 0);   // every 125 us
+  return true;
 }
 
 // ===== ringing =====
@@ -169,6 +226,7 @@ void processBlock() {
     if (sameCount == 2 && d != reported) {
       reported = d; dialed += d;
       Serial.printf("DIGIT: %c   (so far: %s)\n", d, dialed.c_str());
+      if (dialTone) { dialTone = false; Serial.println("(dial tone off)"); }
       led(40, 30, 0);
     }
   } else {
@@ -198,7 +256,10 @@ void hookChanged() {
   if (offHook) {
     Serial.println("OFF-HOOK - handset lifted (or HANDS FREE)");
     dialed = ""; reported = 0; lastSeen = 0; sameCount = 0;
+    if (dialToneEnabled && !answeringRing) { dialTone = true; dialToneStart = millis(); Serial.println("(dial tone on)"); }
+    answeringRing = false;            // answering a ring gets no dial tone (it's an incoming call)
   } else {
+    dialTone = false;
     Serial.println("ON-HOOK  - handset replaced");
     if (dialed.length()) Serial.printf("Number dialed: %s\n", dialed.c_str());
     dialed = "";
@@ -211,7 +272,6 @@ void setup() {
   digitalWrite(RM_PIN, LOW);  pinMode(RM_PIN, OUTPUT);  digitalWrite(RM_PIN, LOW);
   digitalWrite(FR_PIN, HIGH); pinMode(FR_PIN, OUTPUT);  digitalWrite(FR_PIN, HIGH);
   pinMode(SHK_PIN, INPUT);
-  pinMode(TX_PIN, OUTPUT); digitalWrite(TX_PIN, LOW);
   for (int i = 0; i < 4; i++) {
     rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / FS);
     colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / FS);
@@ -250,6 +310,8 @@ void setup() {
     led(40, 0, 0);
     while (true) delay(1000);
   }
+  if (startTx()) Serial.printf("Speaking: PWM %d-bit on GPIO 15, %d samples/s, level capped at medium\n", pwmBits, TX_RATE);
+  else Serial.println("Speaking: PWM/timer FAILED to start");
   offHook = lastRaw = digitalRead(SHK_PIN);
   rawChangedAt = millis();
   Serial.printf("Listening: %d kHz ADC, averaging %d per sample. Handset is %s.\n",
@@ -274,10 +336,16 @@ void loop() {
     } else if (c == 'o' || c == 'O') {
       averaging = !averaging;
       Serial.printf("Averaging %s\n", averaging ? "ON (trimmed mean of 8)" : "OFF (single conversions)");
+    } else if (c == 'd' || c == 'D') {
+      dialToneEnabled = !dialToneEnabled;
+      if (!dialToneEnabled) dialTone = false;
+      Serial.printf("Dial tone %s\n", dialToneEnabled ? "ENABLED (plays on the next lift)" : "DISABLED");
     } else if (c == '?' || c == 'h' || c == 'H') {
       printHelp();
     }
   }
+
+  feedTx();
 
   // audio (always drain the ADC; blocks are ignored while ringing)
   uint32_t got = 0;
@@ -310,9 +378,9 @@ void loop() {
 
   // normal hook detection (idle, or the silent gap between rings)
   if (raw != lastRaw) { lastRaw = raw; rawChangedAt = now; }
-  if (raw != offHook && now - rawChangedAt >= DEBOUNCE_MS) {
+  if (raw != offHook && now - rawChangedAt >= (offHook ? HANGUP_MS : DEBOUNCE_MS)) {
     offHook = raw;
-    if (offHook && mode == RING_OFF) { mode = IDLE; Serial.println("Answered between rings."); }
+    if (offHook && mode == RING_OFF) { mode = IDLE; answeringRing = true; Serial.println("Answered between rings."); }
     hookChanged();
   }
   if (mode == RING_OFF && now - phaseStart >= RING_OFF_MS) startBurst();
