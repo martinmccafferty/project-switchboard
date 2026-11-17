@@ -75,11 +75,12 @@ adc_continuous_handle_t adc = NULL;
 uint8_t dmaBuf[1024];
 int groupVals[GROUP]; int groupFill = 0;
 float dc = 2048, resPos = 0, resPrev = 0, resStep = 15625.0f / 16000.0f;
-const float MIC_GAINS[3] = {8, 16, 32};
-int micLevel = 1;
+const float MIC_GAINS[3] = {16, 32, 64};
+int micLevel = 1;                 // x32 default (T-091: x16 gave peaks ~3,000, quiet for the operator)
 int16_t frame[FRAME]; int frameFill = 0;
 unsigned long lastHeardPlayback = 0;
-int micPeak = 0;
+int micPeak = 0, inPeak = 0;
+int MUTE_ABOVE = 3000;            // incoming peak that counts as Doris speaking (T-091: the exchange's quiet background must not mute us)
 
 // ---------- DTMF on the 16 kHz stream ----------
 const int N = 410;                              // 25.6 ms
@@ -169,7 +170,7 @@ void onSample16k(float s) {
   // stream to the relay (muted while the relay is talking, plus 250 ms)
   // the relay sends frames even while Doris is silent, so mute only while what's playing is actually sound:
   // from the last loud frame received, until it has played out (queue) plus 300 ms
-  bool talking = millis() - lastHeardPlayback < 300 + queued() / 16;
+  bool talking = millis() - lastHeardPlayback < 200 + queued() / 16;
   int v = talking ? 0 : (int)s;
   if (abs(v) > micPeak) micPeak = abs(v);
   if (v > 32767) v = 32767; if (v < -32768) v = -32768;
@@ -226,7 +227,8 @@ void onRelay(WStype_t type, uint8_t* payload, size_t len) {
       float g = EAR_GAINS[earLevel];
       int peak = 0;
       for (size_t i = 0; i < len / 2; i++) { enqueue((int16_t)(s[i] * g)); int a = abs(s[i]); if (a > peak) peak = a; }
-      if (peak > 600) lastHeardPlayback = millis();      // only real sound mutes the microphone
+      if (peak > inPeak) inPeak = peak;
+      if (peak > MUTE_ABOVE) lastHeardPlayback = millis();   // only real speech mutes the microphone
       break;
     }
     default: break;
@@ -336,9 +338,10 @@ void loop() {
                   (unsigned long)underruns, (unsigned long)(queued() / 16),
                   (unsigned long)(maxIsrGap / (getCpuFrequencyMhz())),
                   localTone ? "  [local tone]" : "", wifiOn ? "" : "  [Wi-Fi OFF]");
-    Serial.printf("  mic: %s, peak level %d of 32767 in the last 2 s\n",
-                  millis() - lastHeardPlayback < 300 + queued() / 16 ? "MUTED (Doris talking)" : "open", micPeak);
-    micPeak = 0;
+    Serial.printf("  mic: %s, your loudest %d of 32767 in the last 2 s\n",
+                  millis() - lastHeardPlayback < 200 + queued() / 16 ? "MUTED (relay playing sound)" : "open", micPeak);
+    Serial.printf("  incoming: loudest %d (mutes the mic above %d)\n", inPeak, MUTE_ABOVE);
+    micPeak = 0; inPeak = 0;
     underruns = 0; maxIsrGap = 0;
   }
 
