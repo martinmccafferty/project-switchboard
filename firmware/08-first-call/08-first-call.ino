@@ -10,7 +10,7 @@
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
 // Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
 // z = PWM resting point 50% <-> 12.5% (T-089: supply noise rides on the PWM in proportion to its duty);
-// w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
+// g = microphone noise gate on/off; w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
 
 #include <WiFi.h>
 #include <WebSocketsClient.h>
@@ -80,6 +80,9 @@ int micLevel = 1;                 // x32 default (T-091: x16 gave peaks ~3,000, 
 int16_t frame[FRAME]; int frameFill = 0;
 unsigned long lastHeardPlayback = 0;
 int micPeak = 0, inPeak = 0;
+// noise gate (T-092): frames quieter than ~2.5x the line's own noise floor are sent as silence, so the
+// operator can tell when the caller has stopped talking
+float noiseFloor = 1000, frameRms = 0; double frameSq = 0; bool gateOn = true; unsigned long gatedFrames = 0, sentFrames = 0;
 int MUTE_ABOVE = 3000;            // incoming peak that counts as Doris speaking (T-091: the exchange's quiet background must not mute us)
 
 // ---------- DTMF on the 16 kHz stream ----------
@@ -175,8 +178,14 @@ void onSample16k(float s) {
   if (abs(v) > micPeak) micPeak = abs(v);
   if (v > 32767) v = 32767; if (v < -32768) v = -32768;
   frame[frameFill++] = (int16_t)v;
+  frameSq += (double)v * v;
   if (frameFill == FRAME) {
     frameFill = 0;
+    frameRms = sqrt(frameSq / FRAME); frameSq = 0;
+    // track the quietest recent level as the noise floor (falls fast, rises slowly)
+    if (!talking) { if (frameRms < noiseFloor) noiseFloor = frameRms; else noiseFloor += (frameRms - noiseFloor) * 0.002f; }
+    if (gateOn && frameRms < noiseFloor * 2.5f) { memset(frame, 0, sizeof frame); gatedFrames++; }
+    sentFrames++;
     if (relayUp && offHook) relay.sendBIN((uint8_t*)frame, sizeof frame);
   }
 }
@@ -305,6 +314,7 @@ void loop() {
       localTone = !localTone; pqTail = pqHead; primed = false;
       Serial.printf("Earpiece source: %s\n", localTone ? "LOCAL test dial tone (relay audio ignored)" : "relay");
     }
+    else if (c == 'g' || c == 'G') { gateOn = !gateOn; Serial.printf("Noise gate %s\n", gateOn ? "ON" : "off"); }
     else if (c == 'z' || c == 'Z') {
       pwmIdle = (pwmIdle == pwmMid) ? pwmMid / 4 : pwmMid;
       Serial.printf("PWM resting point: %s\n", pwmIdle == pwmMid ? "50% (original)" : "12.5% (default: less supply noise, less headroom)");
@@ -341,6 +351,9 @@ void loop() {
     Serial.printf("  mic: %s, your loudest %d of 32767 in the last 2 s\n",
                   millis() - lastHeardPlayback < 200 + queued() / 16 ? "MUTED (relay playing sound)" : "open", micPeak);
     Serial.printf("  incoming: loudest %d (mutes the mic above %d)\n", inPeak, MUTE_ABOVE);
+    Serial.printf("  line noise floor %.0f; noise gate %s, %lu of %lu frames sent as silence\n",
+                  noiseFloor, gateOn ? "ON" : "off", gatedFrames, sentFrames);
+    gatedFrames = 0; sentFrames = 0;
     micPeak = 0; inPeak = 0;
     underruns = 0; maxIsrGap = 0;
   }
