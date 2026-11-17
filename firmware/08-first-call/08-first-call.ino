@@ -9,6 +9,7 @@
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled; 115200 baud. Library: "WebSockets" by Markus Sattler.
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
 // Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
+// z = PWM resting point 50% <-> 12.5% (T-089: supply noise rides on the PWM in proportion to its duty);
 // w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
 
 #include <WiFi.h>
@@ -28,6 +29,7 @@ const int PQ = 8192;                            // 512 ms
 volatile int16_t pq[PQ];
 volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
+volatile int pwmIdle = 256;      // resting duty (silence); 50% by default, 'z' lowers it to 12.5%
 volatile uint32_t underruns = 0;
 volatile uint32_t lastIsrCycles = 0, maxIsrGap = 0;   // timing check (T-087): longest gap between ticks, CPU cycles
 bool localTone = false, wifiOn = true;
@@ -56,7 +58,9 @@ void onTx() {
     if (n == 0) { primed = false; underruns++; }           // ran dry: rebuffer (a gap = a click)
     else { v = pq[t]; pqTail = (t + 1) & (PQ - 1); }
   }
-  ledcWrite(TX_PIN, pwmMid + (((int32_t)v * (pwmMid - 1)) >> 15));
+  int d = pwmIdle + (((int32_t)v * (pwmMid - 1)) >> 15);
+  if (d < 0) d = 0; else if (d > 2 * pwmMid - 1) d = 2 * pwmMid - 1;
+  ledcWrite(TX_PIN, d);
 }
 uint32_t queued() { return (pqHead - pqTail) & (PQ - 1); }
 void enqueue(int16_t v) {
@@ -240,6 +244,7 @@ void setup() {
   bool ok = ledcAttach(TX_PIN, pwmFreq, pwmBits);
   if (!ok) { pwmBits = 8; pwmFreq = 78125; ok = ledcAttach(TX_PIN, pwmFreq, pwmBits); }
   pwmMid = 1 << (pwmBits - 1);
+  pwmIdle = pwmMid;
   ledcWrite(TX_PIN, pwmMid);
   txTimer = timerBegin(1000000);
   timerAttachInterrupt(txTimer, &onTx);
@@ -292,6 +297,10 @@ void loop() {
     else if (c == 't' || c == 'T') {
       localTone = !localTone; pqTail = pqHead; primed = false;
       Serial.printf("Earpiece source: %s\n", localTone ? "LOCAL test dial tone (relay audio ignored)" : "relay");
+    }
+    else if (c == 'z' || c == 'Z') {
+      pwmIdle = (pwmIdle == pwmMid) ? pwmMid / 4 : pwmMid;
+      Serial.printf("PWM resting point: %s\n", pwmIdle == pwmMid ? "50% (original)" : "12.5% (low: less supply noise, less headroom)");
     }
     else if (c == 'p' || c == 'P') {
       txp = (txp + 1) % 5;
