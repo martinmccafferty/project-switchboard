@@ -6,6 +6,8 @@
 // play back into what we hear, Q-24, and the operator would otherwise hear herself). Ringing is not handled yet.
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled; 115200 baud. Library: "WebSockets" by Markus Sattler.
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
+// Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
+// w = Wi-Fi radio off/on (use with t). While off-hook, every 2 s: playback underruns and queue depth.
 
 #include <WiFi.h>
 #include <WebSocketsClient.h>
@@ -23,6 +25,10 @@ const int PQ = 8192;                            // 512 ms
 volatile int16_t pq[PQ];
 volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
+volatile uint32_t underruns = 0;
+bool localTone = false, wifiOn = true;
+float lt350 = 0, lt440 = 0;
+unsigned long lastStats = 0;
 hw_timer_t* txTimer = NULL;
 const float EAR_GAINS[3] = {0.12f, 0.25f, 0.5f};
 const char* EAR_NAMES[3] = {"quiet", "medium", "loud"};
@@ -34,7 +40,7 @@ void onTx() {
   int16_t v = 0;
   if (!primed) { if (n >= 1600) primed = true; }          // wait for 100 ms of audio before starting
   if (primed) {
-    if (n == 0) primed = false;                            // ran dry: rebuffer
+    if (n == 0) { primed = false; underruns++; }           // ran dry: rebuffer (a gap = a click)
     else { v = pq[t]; pqTail = (t + 1) & (PQ - 1); }
   }
   ledcWrite(TX_PIN, pwmMid + (((int32_t)v * (pwmMid - 1)) >> 15));
@@ -165,7 +171,7 @@ void onRelay(WStype_t type, uint8_t* payload, size_t len) {
       Serial.printf("relay: %.*s\n", (int)len, (const char*)payload);
       break;
     case WStype_BIN: {
-      if (!offHook) break;
+      if (!offHook || localTone) break;
       const int16_t* s = (const int16_t*)payload;
       float g = EAR_GAINS[earLevel];
       for (size_t i = 0; i < len / 2; i++) enqueue((int16_t)(s[i] * g));
@@ -239,9 +245,33 @@ void loop() {
     char c = Serial.read();
     if (c == 'v' || c == 'V') { earLevel = (earLevel + 1) % 3; Serial.printf("Earpiece: %s\n", EAR_NAMES[earLevel]); }
     else if (c == 'm' || c == 'M') { micLevel = (micLevel + 1) % 3; Serial.printf("Mic gain: x%.0f\n", MIC_GAINS[micLevel]); }
+    else if (c == 't' || c == 'T') {
+      localTone = !localTone; pqTail = pqHead; primed = false;
+      Serial.printf("Earpiece source: %s\n", localTone ? "LOCAL test dial tone (relay audio ignored)" : "relay");
+    }
+    else if (c == 'w' || c == 'W') {
+      wifiOn = !wifiOn;
+      if (wifiOn) { WiFi.mode(WIFI_STA); WiFi.setSleep(false); WiFi.begin(WIFI_SSID, WIFI_PASSWORD); Serial.println("Wi-Fi radio ON (reconnecting)"); }
+      else { relay.disconnect(); WiFi.disconnect(true); WiFi.mode(WIFI_OFF); Serial.println("Wi-Fi radio OFF"); }
+    }
     else if (c == '?') Serial.printf("Wi-Fi %s (%d dBm), relay %s, %s, queue %lu\n",
                                      WiFi.status() == WL_CONNECTED ? "up" : "DOWN", WiFi.RSSI(),
                                      relayUp ? "up" : "DOWN", offHook ? "off-hook" : "on-hook", (unsigned long)queued());
+  }
+
+  if (localTone && offHook) {             // keep ~200 ms of locally made dial tone queued
+    while (queued() < 3200) {
+      float v = (sinf(lt350) + sinf(lt440)) * 0.25f * 0.5f * 32767.0f * EAR_GAINS[earLevel];
+      lt350 += 2 * PI * 350.0f / RATE; if (lt350 > 2 * PI) lt350 -= 2 * PI;
+      lt440 += 2 * PI * 440.0f / RATE; if (lt440 > 2 * PI) lt440 -= 2 * PI;
+      enqueue((int16_t)v);
+    }
+  }
+  if (offHook && millis() - lastStats >= 2000) {
+    lastStats = millis();
+    Serial.printf("  playback: %lu underruns, queue %lu samples (%lu ms)%s\n", (unsigned long)underruns,
+                  (unsigned long)queued(), (unsigned long)(queued() / 16), localTone ? "  [local tone]" : "");
+    underruns = 0;
   }
 
   uint32_t got = 0;
