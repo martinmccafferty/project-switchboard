@@ -3,7 +3,9 @@
 // Protocol (relay/switchboard.mjs): binary 16 kHz 16-bit mono PCM, 20 ms frames, both ways;
 // text {"type":"offhook"|"onhook"} and {"type":"dial","digits":"0"} to the relay; {"type":"status",...} back.
 // Half duplex for now: while the relay is talking, the microphone is muted (the AG1171 echoes some of what we
-// play back into what we hear, Q-24, and the operator would otherwise hear herself). Ringing is not handled yet.
+// play back into what we hear, Q-24, and the operator would otherwise hear herself).
+// Ringing (D-62): the relay's {"type":"ring"} rings the brass bell (2 s on / 4 s off) until answered or
+// {"type":"stop_ring"}; lifting the handset (even mid-ring) answers and tells the relay "offhook".
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled; 115200 baud. Library: "WebSockets" by Markus Sattler.
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
 // Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
@@ -13,6 +15,7 @@
 #include <WebSocketsClient.h>
 #include <math.h>
 #include "esp_adc/adc_continuous.h"
+#include "esp_timer.h"
 #include "secrets.h"
 
 const int SHK_PIN = 4, RM_PIN = 5, FR_PIN = 6, TX_PIN = 15, LED_PIN = 48;
@@ -70,6 +73,28 @@ const char KEYS[4][4] = {{'1','2','3','A'},{'4','5','6','B'},{'7','8','9','C'},{
 float rowCoef[4], colCoef[4];
 float blk[N]; int blkFill = 0;
 char lastSeen = 0, reported = 0; int sameCount = 0, quietCount = 0;
+
+// ---------- ringing (D-62) ----------
+esp_timer_handle_t frTimer;
+volatile bool frState = true;
+bool ringing = false, burstOn = false;
+unsigned long ringStart = 0, phaseStart = 0, windowStart = 0, windowHighMs = 0, lastSample = 0;
+const unsigned long RING_ON_MS = 2000, RING_OFF_MS = 4000, RING_MAX_MS = 60000, TRIP_HIGH_MS = 60;
+void frToggle(void*) { frState = !frState; digitalWrite(FR_PIN, frState); }
+void bellOff() {                       // F/R high > 10 ms before RM goes low (datasheet)
+  esp_timer_stop(frTimer);
+  digitalWrite(FR_PIN, HIGH); frState = true;
+  delay(15);
+  digitalWrite(RM_PIN, LOW);
+  burstOn = false;
+}
+void bellOn() {
+  digitalWrite(FR_PIN, HIGH); frState = true;
+  digitalWrite(RM_PIN, HIGH);
+  esp_timer_start_periodic(frTimer, 25000);   // 20 Hz
+  burstOn = true;
+  phaseStart = windowStart = lastSample = millis(); windowHighMs = 0;
+}
 
 // ---------- hook, relay ----------
 bool offHook = false, lastRaw = false;
@@ -167,9 +192,16 @@ void onRelay(WStype_t type, uint8_t* payload, size_t len) {
       if (relayUp) Serial.println("Relay disconnected (retrying)");
       relayUp = false; showState();
       break;
-    case WStype_TEXT:
+    case WStype_TEXT: {
       Serial.printf("relay: %.*s\n", (int)len, (const char*)payload);
+      char t[64]; size_t n = len < sizeof(t) - 1 ? len : sizeof(t) - 1;
+      memcpy(t, payload, n); t[n] = 0;
+      if (strstr(t, "\"stop_ring\"")) { if (ringing) { ringing = false; bellOff(); Serial.println("Bell stopped by the relay"); showState(); } }
+      else if (strstr(t, "\"ring\"")) {
+        if (!offHook && !ringing) { ringing = true; ringStart = millis(); bellOn(); led(40, 0, 0); Serial.println("RINGING"); }
+      }
       break;
+    }
     case WStype_BIN: {
       if (!offHook || localTone) break;
       const int16_t* s = (const int16_t*)payload;
@@ -187,10 +219,12 @@ void setup() {
   digitalWrite(FR_PIN, HIGH); pinMode(FR_PIN, OUTPUT);  digitalWrite(FR_PIN, HIGH);
   pinMode(SHK_PIN, INPUT);
   for (int i = 0; i < 4; i++) { rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / RATE); colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / RATE); }
+  esp_timer_create_args_t ta = {}; ta.callback = &frToggle; ta.name = "fr";
+  esp_timer_create(&ta, &frTimer);
   Serial.begin(115200);
   delay(1500);
   Serial.println();
-  Serial.println("Project Switchboard - 08-first-call");
+  Serial.println("Project Switchboard - 08-first-call (with ringing)");
 
   // speaking
   bool ok = ledcAttach(TX_PIN, pwmFreq, pwmBits);
@@ -284,10 +318,35 @@ void loop() {
 
   bool raw = digitalRead(SHK_PIN);
   unsigned long now = millis();
+
+  if (ringing) {
+    if (burstOn) {
+      // ring trip: SHK pulses while ringing; count high time in 200 ms windows
+      if (raw) windowHighMs += now - lastSample;
+      lastSample = now;
+      if (windowHighMs >= TRIP_HIGH_MS) {
+        ringing = false; bellOff();
+        offHook = true; lastRaw = raw; rawChangedAt = now;
+        Serial.println("ANSWERED (lifted while ringing) -> relay");
+        sendJson("{\"type\":\"offhook\"}");
+        showState();
+        return;
+      }
+      if (now - windowStart >= 200) { windowStart = now; windowHighMs = 0; }
+      if (now - phaseStart >= RING_ON_MS) { bellOff(); phaseStart = now; led(8, 0, 0); }
+      return;
+    }
+    if (now - ringStart > RING_MAX_MS) { ringing = false; Serial.println("Ringing gave up (60 s)"); showState(); }
+    else if (now - phaseStart >= RING_OFF_MS && !raw) { bellOn(); led(40, 0, 0); }
+  }
+
   if (raw != lastRaw) { lastRaw = raw; rawChangedAt = now; }
   if (raw != offHook && now - rawChangedAt >= (offHook ? 300UL : 30UL)) {
     offHook = raw;
-    if (offHook) { Serial.println("OFF-HOOK -> relay"); sendJson("{\"type\":\"offhook\"}"); }
+    if (offHook) {
+      if (ringing) { ringing = false; Serial.println("ANSWERED between rings"); }
+      Serial.println("OFF-HOOK -> relay"); sendJson("{\"type\":\"offhook\"}");
+    }
     else {
       Serial.println("ON-HOOK -> relay"); sendJson("{\"type\":\"onhook\"}");
       pqTail = pqHead; primed = false;                    // drop anything still queued
