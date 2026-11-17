@@ -9,7 +9,7 @@
 // Board: ESP32S3 Dev Module; USB CDC On Boot: Enabled; 115200 baud. Library: "WebSockets" by Markus Sattler.
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
 // Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
-// w = Wi-Fi radio off/on (use with t). While off-hook, every 2 s: playback underruns and queue depth.
+// w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
 
 #include <WiFi.h>
 #include <WebSocketsClient.h>
@@ -30,6 +30,9 @@ volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
 volatile uint32_t underruns = 0;
 bool localTone = false, wifiOn = true;
+const wifi_power_t TXP[5] = {WIFI_POWER_19_5dBm, WIFI_POWER_11dBm, WIFI_POWER_8_5dBm, WIFI_POWER_5dBm, WIFI_POWER_2dBm};
+const char* TXP_NAMES[5] = {"19.5 dBm (default)", "11 dBm", "8.5 dBm", "5 dBm", "2 dBm"};
+int txp = 0;
 float lt350 = 0, lt440 = 0;
 unsigned long lastStats = 0;
 hw_timer_t* txTimer = NULL;
@@ -283,9 +286,14 @@ void loop() {
       localTone = !localTone; pqTail = pqHead; primed = false;
       Serial.printf("Earpiece source: %s\n", localTone ? "LOCAL test dial tone (relay audio ignored)" : "relay");
     }
+    else if (c == 'p' || c == 'P') {
+      txp = (txp + 1) % 5;
+      WiFi.setTxPower(TXP[txp]);
+      Serial.printf("Wi-Fi transmit power: %s (signal from the router: %d dBm)\n", TXP_NAMES[txp], WiFi.RSSI());
+    }
     else if (c == 'w' || c == 'W') {
       wifiOn = !wifiOn;
-      if (wifiOn) { WiFi.mode(WIFI_STA); WiFi.setSleep(false); WiFi.begin(WIFI_SSID, WIFI_PASSWORD); Serial.println("Wi-Fi radio ON (reconnecting)"); }
+      if (wifiOn) { WiFi.mode(WIFI_STA); WiFi.setSleep(false); WiFi.begin(WIFI_SSID, WIFI_PASSWORD); WiFi.setTxPower(TXP[txp]); Serial.println("Wi-Fi radio ON (reconnecting)"); }
       else { relay.disconnect(); WiFi.disconnect(true); WiFi.mode(WIFI_OFF); Serial.println("Wi-Fi radio OFF"); }
     }
     else if (c == '?') Serial.printf("Wi-Fi %s (%d dBm), relay %s, %s, queue %lu\n",
