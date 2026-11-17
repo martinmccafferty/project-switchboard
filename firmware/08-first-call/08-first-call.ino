@@ -29,6 +29,7 @@ volatile int16_t pq[PQ];
 volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
 volatile uint32_t underruns = 0;
+volatile uint32_t lastIsrCycles = 0, maxIsrGap = 0;   // timing check (T-087): longest gap between ticks, CPU cycles
 bool localTone = false, wifiOn = true;
 const wifi_power_t TXP[5] = {WIFI_POWER_19_5dBm, WIFI_POWER_11dBm, WIFI_POWER_8_5dBm, WIFI_POWER_5dBm, WIFI_POWER_2dBm};
 const char* TXP_NAMES[5] = {"19.5 dBm (default)", "11 dBm", "8.5 dBm", "5 dBm", "2 dBm"};
@@ -41,8 +42,14 @@ const char* EAR_NAMES[3] = {"quiet", "medium", "loud"};
 int earLevel = 1;
 
 void onTx() {
+  uint32_t cc = ESP.getCycleCount();
+  if (lastIsrCycles) { uint32_t gap = cc - lastIsrCycles; if (gap > maxIsrGap) maxIsrGap = gap; }
+  lastIsrCycles = cc;
+  static uint8_t skip = 0;
   uint32_t h = pqHead, t = pqTail;
   uint32_t n = (h - t) & (PQ - 1);
+  // keep the delay short: above 150 ms queued, quietly drop 1 sample in 40 (2.5% faster, not audible as a click)
+  if (primed && n > 2400 && ++skip >= 40) { skip = 0; t = (t + 1) & (PQ - 1); n--; pqTail = t; }
   int16_t v = 0;
   if (!primed) { if (n >= 1600) primed = true; }          // wait for 100 ms of audio before starting
   if (primed) {
@@ -311,9 +318,11 @@ void loop() {
   }
   if (offHook && millis() - lastStats >= 2000) {
     lastStats = millis();
-    Serial.printf("  playback: %lu underruns, queue %lu samples (%lu ms)%s\n", (unsigned long)underruns,
-                  (unsigned long)queued(), (unsigned long)(queued() / 16), localTone ? "  [local tone]" : "");
-    underruns = 0;
+    Serial.printf("  playback: %lu underruns, queue %lu ms, longest tick gap %lu us (should be ~62)%s%s\n",
+                  (unsigned long)underruns, (unsigned long)(queued() / 16),
+                  (unsigned long)(maxIsrGap / (getCpuFrequencyMhz())),
+                  localTone ? "  [local tone]" : "", wifiOn ? "" : "  [Wi-Fi OFF]");
+    underruns = 0; maxIsrGap = 0;
   }
 
   uint32_t got = 0;
