@@ -2,6 +2,8 @@
 // Version 2 (2026-11-16) covers: hook detection (04), ringing + ring trip (05), line listening with
 // hardware-ADC averaging, levels and DTMF digit decoding (06c), and NEW: speaking into the line by PWM (07c,
 // D-68) as a real dial tone (350 + 440 Hz) from lift until the first digit, plus a 300 ms hang-up check (Q-23).
+// v2.1 (2026-11-16): the ADC runs at the PWM's own rate (62.5 kHz), so the PWM's leftover lands at 0 Hz
+// instead of a 1.5 kHz tone in the voice band (T-079); audio is 7812.5 samples/s.
 // v1 (2026-11-14): hook, ring, listen + DTMF. Add each new verified feature here (D-66).
 //
 // Serial Monitor at 115200. Commands (type the letter + Enter):
@@ -23,7 +25,7 @@
 #include "esp_adc/adc_continuous.h"
 #include "esp_timer.h"
 
-const char* VERSION = "99-regression v2: hook, ring, listen + DTMF, dial tone (PWM out)";
+const char* VERSION = "99-regression v2.1: hook, ring, listen + DTMF, dial tone (PWM out), ADC at the PWM rate";
 const int SHK_PIN = 4, RM_PIN = 5, FR_PIN = 6, LED_PIN = 48;   // audio on GPIO 7 = ADC1 channel 6
 const int TX_PIN = 15;   // speaking: PWM (D-68)
 
@@ -32,7 +34,7 @@ const int TX_PIN = 15;   // speaking: PWM (D-68)
 // loop() keeps the queue topped up. The interrupt does integer maths only.
 const int TX_RATE = 8000;
 const int TX_LEVEL = 3300;                    // "medium" cap (D-68): louder upsets hands-free (Q-23)
-int pwmBits = 9, pwmMid = 256;
+int pwmBits = 9, pwmMid = 256, pwmFreq = 62500;
 const int TXQ = 1024;                         // 128 ms of audio
 volatile int16_t txq[TXQ];
 volatile uint16_t txHead = 0, txTail = 0;
@@ -60,7 +62,11 @@ bool offHook = false, lastRaw = false;
 unsigned long rawChangedAt = 0;
 
 // ---------- listening (D-63, D-64) ----------
-const int RAW_RATE = 64000, GROUP = 8, FS = RAW_RATE / GROUP;  // 8 kHz
+// The ADC samples at exactly the PWM frequency (set in setup from pwmFreq): sampling the PWM's switching at its
+// own rate turns it into a steady offset (0 Hz) rather than a tone in the voice band (T-079).
+int RAW_RATE = 62500;
+const int GROUP = 8;
+float FS = 62500.0f / GROUP;   // 7812.5 samples/s
 const int N = 205;
 const float ROW_HZ[4] = {697, 770, 852, 941};
 const float COL_HZ[4] = {1209, 1336, 1477, 1633};
@@ -114,9 +120,9 @@ void feedTx() {
 }
 
 bool startTx() {
-  pwmBits = 9;
-  bool ok = ledcAttach(TX_PIN, 62500, pwmBits);
-  if (!ok) { pwmBits = 8; ok = ledcAttach(TX_PIN, 78125, pwmBits); }
+  pwmBits = 9; pwmFreq = 62500;
+  bool ok = ledcAttach(TX_PIN, pwmFreq, pwmBits);
+  if (!ok) { pwmBits = 8; pwmFreq = 78125; ok = ledcAttach(TX_PIN, pwmFreq, pwmBits); }
   pwmMid = 1 << (pwmBits - 1);
   if (!ok) return false;
   ledcWrite(TX_PIN, pwmMid);
@@ -272,6 +278,9 @@ void setup() {
   digitalWrite(RM_PIN, LOW);  pinMode(RM_PIN, OUTPUT);  digitalWrite(RM_PIN, LOW);
   digitalWrite(FR_PIN, HIGH); pinMode(FR_PIN, OUTPUT);  digitalWrite(FR_PIN, HIGH);
   pinMode(SHK_PIN, INPUT);
+  bool txOk = startTx();                     // first, so the ADC can match its rate
+  RAW_RATE = pwmFreq;
+  FS = (float)RAW_RATE / GROUP;
   for (int i = 0; i < 4; i++) {
     rowCoef[i] = 2 * cosf(2 * PI * ROW_HZ[i] / FS);
     colCoef[i] = 2 * cosf(2 * PI * COL_HZ[i] / FS);
@@ -310,12 +319,12 @@ void setup() {
     led(40, 0, 0);
     while (true) delay(1000);
   }
-  if (startTx()) Serial.printf("Speaking: PWM %d-bit on GPIO 15, %d samples/s, level capped at medium\n", pwmBits, TX_RATE);
+  if (txOk) Serial.printf("Speaking: PWM %d-bit at %d Hz on GPIO 15, %d samples/s, level capped at medium\n", pwmBits, pwmFreq, TX_RATE);
   else Serial.println("Speaking: PWM/timer FAILED to start");
   offHook = lastRaw = digitalRead(SHK_PIN);
   rawChangedAt = millis();
-  Serial.printf("Listening: %d kHz ADC, averaging %d per sample. Handset is %s.\n",
-                RAW_RATE / 1000, GROUP, offHook ? "UP" : "DOWN");
+  Serial.printf("Listening: ADC at %d Hz (same as the PWM), averaging %d per sample = %.1f samples/s. Handset is %s.\n",
+                RAW_RATE, GROUP, FS, offHook ? "UP" : "DOWN");
   printHelp();
   showIdle();
 }
@@ -341,7 +350,9 @@ void loop() {
       if (!dialToneEnabled) dialTone = false;
       Serial.printf("Dial tone %s\n", dialToneEnabled ? "ENABLED (plays on the next lift)" : "DISABLED");
     } else if (c == '?' || c == 'h' || c == 'H') {
+      showLevels = false;                  // so the checklist stays on screen
       printHelp();
+      Serial.println("(Levels paused so this stays readable: type l to turn them back on)");
     }
   }
 
