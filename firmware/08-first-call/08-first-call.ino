@@ -79,6 +79,7 @@ const float MIC_GAINS[3] = {8, 16, 32};
 int micLevel = 1;
 int16_t frame[FRAME]; int frameFill = 0;
 unsigned long lastHeardPlayback = 0;
+int micPeak = 0;
 
 // ---------- DTMF on the 16 kHz stream ----------
 const int N = 410;                              // 25.6 ms
@@ -166,8 +167,11 @@ void onSample16k(float s) {
     } else { lastSeen = 0; sameCount = 0; if (++quietCount >= 2) reported = 0; }
   }
   // stream to the relay (muted while the relay is talking, plus 250 ms)
-  bool talking = queued() > 0 || millis() - lastHeardPlayback < 250;
+  // the relay sends frames even while Doris is silent, so mute only while what's playing is actually sound:
+  // from the last loud frame received, until it has played out (queue) plus 300 ms
+  bool talking = millis() - lastHeardPlayback < 300 + queued() / 16;
   int v = talking ? 0 : (int)s;
+  if (abs(v) > micPeak) micPeak = abs(v);
   if (v > 32767) v = 32767; if (v < -32768) v = -32768;
   frame[frameFill++] = (int16_t)v;
   if (frameFill == FRAME) {
@@ -220,8 +224,9 @@ void onRelay(WStype_t type, uint8_t* payload, size_t len) {
       if (!offHook || localTone) break;
       const int16_t* s = (const int16_t*)payload;
       float g = EAR_GAINS[earLevel];
-      for (size_t i = 0; i < len / 2; i++) enqueue((int16_t)(s[i] * g));
-      lastHeardPlayback = millis();
+      int peak = 0;
+      for (size_t i = 0; i < len / 2; i++) { enqueue((int16_t)(s[i] * g)); int a = abs(s[i]); if (a > peak) peak = a; }
+      if (peak > 600) lastHeardPlayback = millis();      // only real sound mutes the microphone
       break;
     }
     default: break;
@@ -244,8 +249,8 @@ void setup() {
   bool ok = ledcAttach(TX_PIN, pwmFreq, pwmBits);
   if (!ok) { pwmBits = 8; pwmFreq = 78125; ok = ledcAttach(TX_PIN, pwmFreq, pwmBits); }
   pwmMid = 1 << (pwmBits - 1);
-  pwmIdle = pwmMid;
-  ledcWrite(TX_PIN, pwmMid);
+  pwmIdle = pwmMid / 4;                               // 12.5% resting point (T-090); z toggles 50%
+  ledcWrite(TX_PIN, pwmIdle);
   txTimer = timerBegin(1000000);
   timerAttachInterrupt(txTimer, &onTx);
   timerAlarm(txTimer, 1000000 / RATE, true, 0);       // 62.5 us
@@ -300,7 +305,7 @@ void loop() {
     }
     else if (c == 'z' || c == 'Z') {
       pwmIdle = (pwmIdle == pwmMid) ? pwmMid / 4 : pwmMid;
-      Serial.printf("PWM resting point: %s\n", pwmIdle == pwmMid ? "50% (original)" : "12.5% (low: less supply noise, less headroom)");
+      Serial.printf("PWM resting point: %s\n", pwmIdle == pwmMid ? "50% (original)" : "12.5% (default: less supply noise, less headroom)");
     }
     else if (c == 'p' || c == 'P') {
       txp = (txp + 1) % 5;
@@ -331,6 +336,9 @@ void loop() {
                   (unsigned long)underruns, (unsigned long)(queued() / 16),
                   (unsigned long)(maxIsrGap / (getCpuFrequencyMhz())),
                   localTone ? "  [local tone]" : "", wifiOn ? "" : "  [Wi-Fi OFF]");
+    Serial.printf("  mic: %s, peak level %d of 32767 in the last 2 s\n",
+                  millis() - lastHeardPlayback < 300 + queued() / 16 ? "MUTED (Doris talking)" : "open", micPeak);
+    micPeak = 0;
     underruns = 0; maxIsrGap = 0;
   }
 
