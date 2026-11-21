@@ -30,7 +30,7 @@ volatile int16_t pq[PQ];
 volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
 volatile int pwmIdle = 256;      // resting duty (silence); 50% by default, 'z' lowers it to 12.5%
-volatile bool quietLine = true, lineSilent = true;   // T-099: output fully off while the relay is silent ('q' toggles)
+volatile bool quietLine = false, lineSilent = true;  // T-099 quiet line; OFF by default since T-104 (glide clipped phrase starts; didn't cure crackle or hands-free); 'q' toggles
 unsigned long lastAnySound = 0;
 volatile uint32_t underruns = 0;
 volatile uint32_t lastIsrCycles = 0, maxIsrGap = 0;   // timing check (T-087): longest gap between ticks, CPU cycles
@@ -52,8 +52,8 @@ void onTx() {
   static uint8_t skip = 0;
   uint32_t h = pqHead, t = pqTail;
   uint32_t n = (h - t) & (PQ - 1);
-  // keep the delay short: above 150 ms queued, quietly drop 1 sample in 40 (2.5% faster, not audible as a click)
-  if (primed && n > 2400 && ++skip >= 40) { skip = 0; t = (t + 1) & (PQ - 1); n--; pqTail = t; }
+  // keep the delay bounded: above 250 ms queued, drop 1 sample in 200 (0.5% faster; T-104: 2.5% was audible as pitch)
+  if (primed && n > 4000 && ++skip >= 200) { skip = 0; t = (t + 1) & (PQ - 1); n--; pqTail = t; }   // T-104: gentler, only above 250 ms (0.5%, inaudible)
   int16_t v = 0;
   if (!primed) { if (n >= 1600) primed = true; }          // wait for 100 ms of audio before starting
   if (primed) {
