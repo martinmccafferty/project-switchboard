@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-20 (Log v1.160)
+**Last updated:** 2026-11-20 (Log v1.163)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -660,4 +660,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-20 | v1.160 | (claude.ai chat) T-098: SHK divider 10k / 33k (3.05 V); ESP32 off the Mac reduces the crackle; hands-free mic still silent |
 | 2026-11-20 | v1.161 | (claude.ai chat) T-099: loud + 12.5% preferred; speakerphone mic sends nothing; 08 gains 'quiet line' |
 | 2026-11-20 | v1.162 | (claude.ai chat) T-100: 08 defaults back to mic ×16, gate off; earpiece loud |
-| 2026-11-20 | v1.160 | (Claude Code) D-73: Google Home grant expired after 7 days (OAuth app in Testing); public About, Privacy and Terms pages for publishing the app as Number Please |
+| 2026-11-20 | v1.163 | (Claude Code) D-73: Google Home grant expired after 7 days (OAuth app in Testing); public About, Privacy and Terms pages for publishing the app as Number Please |
