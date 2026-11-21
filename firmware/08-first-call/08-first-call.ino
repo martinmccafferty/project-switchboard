@@ -83,13 +83,13 @@ uint8_t dmaBuf[1024];
 int groupVals[GROUP]; int groupFill = 0;
 float dc = 2048, resPos = 0, resPrev = 0, resStep = 15625.0f / 16000.0f;
 const float MIC_GAINS[3] = {16, 32, 64};
-int micLevel = 1;                 // x32 default (T-091: x16 gave peaks ~3,000, quiet for the operator)
+int micLevel = 0;                 // x16 default (T-100: with the gate off this gave the best recognition, T-094)
 int16_t frame[FRAME]; int frameFill = 0;
 unsigned long lastHeardPlayback = 0;
 int micPeak = 0, inPeak = 0;
 // noise gate (T-092): frames quieter than ~2.5x the line's own noise floor are sent as silence, so the
 // operator can tell when the caller has stopped talking
-float noiseFloor = 1000, frameRms = 0; double frameSq = 0; bool gateOn = true; unsigned long gatedFrames = 0, sentFrames = 0;
+float noiseFloor = 1000, frameRms = 0; double frameSq = 0; bool gateOn = false;   // off by default (T-100): its floor tracker crept up and silenced speech; 'g' turns it on unsigned long gatedFrames = 0, sentFrames = 0;
 int MUTE_ABOVE = 3000;            // incoming peak that counts as Doris speaking (T-091: the exchange's quiet background must not mute us)
 
 // ---------- DTMF on the 16 kHz stream ----------
