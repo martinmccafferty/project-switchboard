@@ -10,7 +10,7 @@
 // Wiring as 99-regression. Commands: v earpiece volume, m microphone gain, ? status.
 // Interference diagnosis (T-085): t = local test tone instead of the relay's audio (same level, Wi-Fi still on);
 // z = PWM resting point 50% <-> 12.5% (T-089: supply noise rides on the PWM in proportion to its duty);
-// g = microphone noise gate on/off; w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
+// q = quiet line on/off (output off during silence; T-099); g = microphone noise gate on/off; w = Wi-Fi radio off/on (use with t); p = Wi-Fi transmit power step (19.5 / 11 / 8.5 / 5 / 2 dBm). While off-hook, every 2 s: playback underruns and queue depth.
 
 #include <WiFi.h>
 #include <WebSocketsClient.h>
@@ -30,6 +30,8 @@ volatile int16_t pq[PQ];
 volatile uint32_t pqHead = 0, pqTail = 0;
 volatile bool primed = false;
 volatile int pwmIdle = 256;      // resting duty (silence); 50% by default, 'z' lowers it to 12.5%
+volatile bool quietLine = true, lineSilent = true;   // T-099: output fully off while the relay is silent ('q' toggles)
+unsigned long lastAnySound = 0;
 volatile uint32_t underruns = 0;
 volatile uint32_t lastIsrCycles = 0, maxIsrGap = 0;   // timing check (T-087): longest gap between ticks, CPU cycles
 bool localTone = false, wifiOn = true;
@@ -58,7 +60,12 @@ void onTx() {
     if (n == 0) { primed = false; underruns++; }           // ran dry: rebuffer (a gap = a click)
     else { v = pq[t]; pqTail = (t + 1) & (PQ - 1); }
   }
-  int d = pwmIdle + (((int32_t)v * (pwmMid - 1)) >> 15);
+  // quiet line (T-099): while the relay sends only silence, glide the output's resting point down to 0
+  // (pin held low = no supply ripple reaches the phone), and back up before sound plays. ~1 count per 8 ticks.
+  static int base = 0; static uint8_t glide = 0;
+  int target = (quietLine && lineSilent) ? 0 : pwmIdle;
+  if (base != target && ++glide >= 8) { glide = 0; base += (target > base) ? 1 : -1; }
+  int d = base + (((int32_t)v * (pwmMid - 1)) >> 15);
   if (d < 0) d = 0; else if (d > 2 * pwmMid - 1) d = 2 * pwmMid - 1;
   ledcWrite(TX_PIN, d);
 }
@@ -237,6 +244,7 @@ void onRelay(WStype_t type, uint8_t* payload, size_t len) {
       int peak = 0;
       for (size_t i = 0; i < len / 2; i++) { enqueue((int16_t)(s[i] * g)); int a = abs(s[i]); if (a > peak) peak = a; }
       if (peak > inPeak) inPeak = peak;
+      if (peak > 150) { lastAnySound = millis(); lineSilent = false; }
       if (peak > MUTE_ABOVE) lastHeardPlayback = millis();   // only real speech mutes the microphone
       break;
     }
@@ -314,6 +322,7 @@ void loop() {
       localTone = !localTone; pqTail = pqHead; primed = false;
       Serial.printf("Earpiece source: %s\n", localTone ? "LOCAL test dial tone (relay audio ignored)" : "relay");
     }
+    else if (c == 'q' || c == 'Q') { quietLine = !quietLine; Serial.printf("Quiet line %s\n", quietLine ? "ON (output off while the relay is silent)" : "off"); }
     else if (c == 'g' || c == 'G') { gateOn = !gateOn; Serial.printf("Noise gate %s\n", gateOn ? "ON" : "off"); }
     else if (c == 'z' || c == 'Z') {
       pwmIdle = (pwmIdle == pwmMid) ? pwmMid / 4 : pwmMid;
@@ -334,6 +343,8 @@ void loop() {
                                      relayUp ? "up" : "DOWN", offHook ? "off-hook" : "on-hook", (unsigned long)queued());
   }
 
+  if (!localTone && millis() - lastAnySound > 500) lineSilent = true;
+  if (localTone) lineSilent = false;
   if (localTone && offHook) {             // keep ~200 ms of locally made dial tone queued
     while (queued() < 3200) {
       float v = (sinf(lt350) + sinf(lt440)) * 0.25f * 0.5f * 32767.0f * EAR_GAINS[earLevel];
@@ -351,6 +362,7 @@ void loop() {
     Serial.printf("  mic: %s, your loudest %d of 32767 in the last 2 s\n",
                   millis() - lastHeardPlayback < 200 + queued() / 16 ? "MUTED (relay playing sound)" : "open", micPeak);
     Serial.printf("  incoming: loudest %d (mutes the mic above %d)\n", inPeak, MUTE_ABOVE);
+    Serial.printf("  earpiece output: %s\n", (quietLine && lineSilent) ? "OFF (relay silent)" : "on");
     Serial.printf("  line noise floor %.0f; noise gate %s, %lu of %lu frames sent as silence\n",
                   noiseFloor, gateOn ? "ON" : "off", gatedFrames, sentFrames);
     gatedFrames = 0; sentFrames = 0;
