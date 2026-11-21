@@ -89,7 +89,8 @@ unsigned long lastHeardPlayback = 0;
 int micPeak = 0, inPeak = 0;
 // noise gate (T-092): frames quieter than ~2.5x the line's own noise floor are sent as silence, so the
 // operator can tell when the caller has stopped talking
-float noiseFloor = 1000, frameRms = 0; double frameSq = 0; bool gateOn = false;   // off by default (T-100): its floor tracker crept up and silenced speech; 'g' turns it on unsigned long gatedFrames = 0, sentFrames = 0;
+float noiseFloor = 1000, frameRms = 0; double frameSq = 0; bool gateOn = false;   // off by default (T-100): its floor tracker crept up and silenced speech; 'g' turns it on
+unsigned long gatedFrames = 0, sentFrames = 0;
 int MUTE_ABOVE = 3000;            // incoming peak that counts as Doris speaking (T-091: the exchange's quiet background must not mute us)
 
 // ---------- DTMF on the 16 kHz stream ----------
