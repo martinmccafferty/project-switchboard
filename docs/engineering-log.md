@@ -1,7 +1,7 @@
 # Project Switchboard — Engineering Log
 
 **Owner:** Martin McCafferty · **Engineering partner:** Claude
-**Last updated:** 2026-11-20 (Log v1.167)
+**Last updated:** 2026-11-20 (Log v1.168)
 **Current phase:** Phase 4 — line module on the breadboard (all parts in hand); Phase 5 relay live on Railway
 
 > How to use this log: it is the single source of truth between conversations. Claude updates it after every session that produces a discovery, decision, or test result. Items are numbered (C = confirmed, H = hypothesis, D = decision, Q = open question, T = test) so they can be referenced in conversation ("H-01 is now confirmed by T-003").
@@ -669,3 +669,4 @@ Connects hook-switch board to main PCB (C-04). Pin functions not investigated (n
 | 2026-11-20 | v1.165 | (claude.ai chat) T-103: neither pin 15 nor 3V3 carries the crackle; next: single supply for both boards |
 | 2026-11-20 | v1.166 | (claude.ai chat) T-104: gentler queue trim; quiet line off by default |
 | 2026-11-20 | v1.167 | (Claude Code) D-73: Google Home grant expired after 7 days (OAuth app in Testing); public About, Privacy and Terms pages for publishing the app as Number Please |
+| 2026-11-20 | v1.168 | (claude.ai chat) Compile checks: arduino-cli 1.1.1 + ESP32 core 3.3.12 (board esp32s3, USB CDC on boot) set up in the chat's workspace; all 14 sketches compile, including the fixed `08-first-call`. Firmware changes from the chat are compiled before pushing |
