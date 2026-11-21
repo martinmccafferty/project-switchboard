@@ -43,7 +43,7 @@ unsigned long lastStats = 0;
 hw_timer_t* txTimer = NULL;
 const float EAR_GAINS[3] = {0.12f, 0.25f, 0.5f};
 const char* EAR_NAMES[3] = {"quiet", "medium", "loud"};
-int earLevel = 1;
+int earLevel = 2;                 // "loud" default (T-099: preferred with the 12.5% resting point)
 
 void onTx() {
   uint32_t cc = ESP.getCycleCount();
