@@ -291,7 +291,8 @@ const server = http.createServer(async (req, res) => {
   if (await handleGoogleHome(req, res)) return; // connecting the household's Google Home (D-50)
   // The settings page's API; after a save, the weather menu is re-voiced if the home location changed.
   if (await handleSettingsApi(req, res, { onSaved: () => prepareWeatherLine().catch(() => {}) })) return;
-  const pages = { '/': 'index.html', '/settings': 'settings.html', '/list': 'list.html' }; // the list page: D-58
+  const pages = { '/': 'index.html', '/settings': 'settings.html', '/list': 'list.html', // the list page: D-58
+    '/about': 'about.html', '/privacy': 'privacy.html', '/terms': 'terms.html' };       // public, for Google's app review
   const name = pages[req.url.split('?')[0]] ?? path.basename(req.url.split('?')[0]);
   const file = path.join('softphone', name);
   if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }

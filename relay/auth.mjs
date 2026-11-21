@@ -22,6 +22,8 @@ const SESSION_DAYS = 30;
 const COOKIE = 'switchboard_session';
 const STATE_COOKIE = 'switchboard_signin';
 const ON_RAILWAY = Boolean(process.env.RAILWAY_ENVIRONMENT);
+// Readable without signing in: Google's consent screen links to the home page, privacy policy and terms.
+const PUBLIC = new Set(['/about', '/privacy', '/terms', '/public.css']);
 
 export const authEnabled = Boolean(CLIENT_ID);
 
@@ -159,6 +161,7 @@ export async function handleAuth(req, res) {
     return true;
   }
 
+  if (PUBLIC.has(p)) return false; // the about, privacy and terms pages, for Google's app review
   if (signedIn(req)) return false; // carry on to the page or API
   if (p.startsWith('/api/')) {
     res.writeHead(401, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'Not signed in' }));

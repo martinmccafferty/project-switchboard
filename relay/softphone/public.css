@@ -1,0 +1,20 @@
+/* The public pages (about, privacy, terms): readable without signing in, for Google's app review. */
+:root { --ivory: #f3ecdc; --ink: #3b3226; --brass: #b08d57; --quiet: #6c604e; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: #2d2822; color: var(--ink); font: 16px/1.55 Georgia, 'Times New Roman', serif;
+  display: flex; justify-content: center; padding: 32px 16px 48px; }
+main { width: 100%; max-width: 520px; background: var(--ivory); border-radius: 18px; padding: 24px 24px 18px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.4); align-self: flex-start; }
+main.long { max-width: 680px; }
+h1 { margin: 0 0 6px; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+h1 a { color: inherit; text-decoration: none; }
+h2 { margin: 18px 0 4px; font-size: 20px; font-weight: normal; }
+h3 { margin: 20px 0 4px; font-size: 16px; }
+.tagline { margin: 0 0 16px; font-style: italic; color: var(--quiet); }
+.date { margin: 0 0 12px; color: var(--quiet); font-size: 14px; }
+ul { padding-left: 20px; }
+li { margin-bottom: 6px; }
+a { color: var(--ink); }
+.actions { text-align: center; margin: 22px 0 8px; }
+a.button { display: inline-block; padding: 10px 18px; border-radius: 8px; background: var(--ink); color: var(--ivory); text-decoration: none; }
+footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid #cbbd9f; font-size: 14px; text-align: center; color: var(--quiet); }
